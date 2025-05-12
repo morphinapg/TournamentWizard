@@ -1,0 +1,133 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:TournamentWizard.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="1024" d:DesignHeight="768"
+        Width="1024" Height="768" WindowStartupLocation="CenterScreen"
+        x:Class="TournamentWizard.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Icon="/Assets/icon.ico"
+        Title="TournamentWizard">
+
+    <Design.DataContext>
+        <vm:MainViewModel/>
+    </Design.DataContext>
+  <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,*,Auto">
+    <Grid.Styles>
+      <Style Selector="Button">
+        <Setter Property="Margin" Value="15"/>
+        <Setter Property="FontSize" Value="24"/>
+        <Setter Property="Padding" Value="15"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+      </Style>
+    </Grid.Styles>
+
+      <Grid Grid.RowSpan="3" RowDefinitions="Auto,*">
+        <TextBlock Text="Starting Items" Margin="10" FontSize="16" FontWeight="Bold"/>
+
+        <ListBox Grid.Row="1"  ItemsSource="{Binding InputItems}" SelectedItem="{Binding SelectedItem}">
+          <ListBox.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel/>
+            </ItemsPanelTemplate>
+          </ListBox.ItemsPanel>
+        </ListBox>
+      </Grid>
+
+
+    <Grid Grid.Column="2" Grid.RowSpan="3" RowDefinitions="Auto,*">
+      <TextBlock Text="Final Ranking" Margin="10" FontSize="16" FontWeight="Bold"/>
+
+      <ListBox Grid.Row="1" ItemsSource="{Binding OutputItems}">
+        <ListBox.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel/>
+          </ItemsPanelTemplate>
+        </ListBox.ItemsPanel>
+      </ListBox>
+    </Grid>
+
+    <Grid ColumnDefinitions="Auto,*" Grid.Column="1">
+      <Button Content="Paste Items" Command="{Binding Paste_Items}"/>
+
+      <StackPanel Orientation="Horizontal" Grid.Column="1" HorizontalAlignment="Right">
+        <Button Content="Load State" Command="{Binding Load_State}"/>
+        <Button Content="Save State" Command="{Binding Save_State}"/>
+      </StackPanel>
+    </Grid>
+
+    <StackPanel Grid.Column="1" Grid.Row="1" VerticalAlignment="Center">
+      <TextBlock Text="{Binding ReplacementString}" IsVisible="{Binding ReplacementMode}" HorizontalAlignment="Center"/>
+      <vm:CenteredWrapPanel HorizontalAlignment="Center">
+        <Button Content="{Binding Choice1}" IsVisible="{Binding Choice1Visible}" Command="{Binding Choose_1}"/>
+        <Button Content="{Binding Choice2}" IsVisible="{Binding Choice2Visible}" Command="{Binding Choose_2}"/>
+      </vm:CenteredWrapPanel>
+
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+        <StackPanel.Styles>
+          <Style Selector="Button">
+            <Setter Property="Margin" Value="5"/>
+            <Setter Property="FontSize" Value="20"/>
+            <Setter Property="Padding" Value="7.5"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+          </Style>
+        </StackPanel.Styles>
+        <Button Content="Undo" Command="{Binding Undo_Click}" IsVisible="{Binding UndoVisible}"/>
+      </StackPanel>
+    </StackPanel>
+
+    <Grid Grid.Row="2" Grid.Column="1" ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto,Auto" Opacity="{Binding ProgressOpacity}">
+      <Grid.Styles>
+        <Style Selector="TextBlock">
+          <Setter Property="FontSize" Value="20"/>
+          <Setter Property="Margin" Value="10"/>
+        </Style>
+        <Style Selector="ProgressBar">
+          <Setter Property="VerticalAlignment" Value="Stretch"/>
+          <Setter Property="Margin" Value="5"/>
+        </Style>
+      </Grid.Styles>
+
+      <StackPanel VerticalAlignment="Center" IsVisible="{Binding DeleteVisible}">
+        <StackPanel.Styles>
+          <Style Selector="Button">
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="Padding" Value="7.5"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="Margin" Value="5"/>
+          </Style>
+        </StackPanel.Styles>
+        <Button Content="Delete Choices" Command="{Binding Delete_Click}"/>
+        <Button Content="Replace Choices" Command="{Binding Start_Replacement}"/>
+      </StackPanel>
+
+
+      <StackPanel HorizontalAlignment="Center" Grid.ColumnSpan="3" VerticalAlignment="Center" >
+        <TextBlock Text="{Binding StoredChoices, StringFormat={}{0:N0} Choices Remembered}" FontSize="14" HorizontalAlignment="Center"/>
+        <TextBlock Text="{Binding PercentMatch}" FontSize="14" HorizontalAlignment="Center"/>
+      </StackPanel>
+
+
+      <TextBlock Grid.Row="1" Text="Current Tournament:"/>
+      <TextBlock Text="Total Progress:" Grid.Row="2"/>
+      
+      <ProgressBar Grid.Row="1" Grid.Column="1" Maximum="1" Value="{Binding CurrentPercent}"/>
+      <TextBlock Grid.Row="1" Text="{Binding CurrentPercent, StringFormat=P2}" HorizontalAlignment="Right" Grid.Column="1"/>
+      <ProgressBar Grid.Column="1" Grid.Row="2" Maximum="1" Value="{Binding TotalPercent}"/>
+      <TextBlock Text="{Binding TotalPercent, StringFormat=P2}" HorizontalAlignment="Right" Grid.Column="1" Grid.Row="2"/>
+
+      <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.Column="2">
+        <TextBlock Text="{Binding CurrentProgress, StringFormat=N0}"/>
+        <TextBlock Text="/"/>
+        <TextBlock Text="{Binding CurrentTotal, StringFormat=N0}"/>
+      </StackPanel>
+
+      <StackPanel Orientation="Horizontal" Grid.Column="2" Grid.Row="2">
+        <TextBlock Text="{Binding TotalProgress, StringFormat=N0}"/>
+        <TextBlock Text="/"/>
+        <TextBlock Text="{Binding TotalTotal, StringFormat=N0}"/>
+      </StackPanel>
+    </Grid>
+  </Grid>  
+</Window>
