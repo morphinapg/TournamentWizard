@@ -21,12 +21,15 @@
         <Setter Property="Padding" Value="15"/>
         <Setter Property="FontWeight" Value="Bold"/>
       </Style>
+      <Style Selector="ListBoxItem">
+        <Setter Property="Focusable" Value="False"/>
+      </Style>
     </Grid.Styles>
 
       <Grid Grid.RowSpan="3" RowDefinitions="Auto,*">
         <TextBlock Text="Starting Items" Margin="10" FontSize="16" FontWeight="Bold"/>
 
-        <ListBox Grid.Row="1"  ItemsSource="{Binding InputItems}" SelectedItem="{Binding SelectedItem}">
+        <ListBox Grid.Row="1"  ItemsSource="{Binding InputItems}" SelectedItem="{Binding SelectedItem}" Focusable="False">
           <ListBox.ItemsPanel>
             <ItemsPanelTemplate>
               <StackPanel/>
