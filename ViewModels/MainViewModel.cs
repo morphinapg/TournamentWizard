@@ -339,6 +339,17 @@ namespace TournamentWizard.ViewModels
             }
         }
 
+        int _outputSelected = -1;
+        public int OutputSelected
+        {
+            get => _outputSelected;
+            set
+            {
+                _outputSelected = value;
+                OnPropertyChanged(nameof(OutputSelected));
+            }
+        }
+
         void GetNextTier()
         {
             if (CurrentTier is not null)
@@ -356,6 +367,12 @@ namespace TournamentWizard.ViewModels
 
                     var number = OutputItems.Count + 1;
                     OutputItems.Add(number + ". " + item);
+
+                    //Scroll to include the new items into view
+                    //then select the original item again
+                    var PreviouslySelected = OutputSelected;
+                    OutputSelected = OutputItems.Count - 1;
+                    OutputSelected = PreviouslySelected;
 
                     InputItems.Remove(item);
                     GetPercentMatch();
@@ -394,7 +411,7 @@ namespace TournamentWizard.ViewModels
         public CommandHandler Choose_1 => new CommandHandler(Choose1);
         public CommandHandler Choose_2 => new CommandHandler(Choose2);
 
-        void Choose1()
+        public void Choose1()
         {
             if (CurrentTier is not null && Choice1 is not null && Choice2 is not null)
             {
@@ -424,7 +441,7 @@ namespace TournamentWizard.ViewModels
             }
         }
 
-        void Choose2()
+        public void Choose2()
         {
             if (CurrentTier is not null && Choice1 is not null && Choice2 is not null)
             {

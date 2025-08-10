@@ -39,7 +39,7 @@
     <Grid Grid.Column="2" Grid.RowSpan="3" RowDefinitions="Auto,*">
       <TextBlock Text="Final Ranking" Margin="10" FontSize="16" FontWeight="Bold"/>
 
-      <ListBox Grid.Row="1" ItemsSource="{Binding OutputItems}">
+      <ListBox Grid.Row="1" ItemsSource="{Binding OutputItems}" SelectedIndex="{Binding OutputSelected, Mode=TwoWay}">
         <ListBox.ItemsPanel>
           <ItemsPanelTemplate>
             <StackPanel/>
