@@ -27,6 +27,7 @@ namespace TournamentWizard.ViewModels
             {
                 _inputItems = value;
                 OnPropertyChanged(nameof(InputItems));
+                OnPropertyChanged(nameof(OptimizeVisible));
             }
         }
 
@@ -37,6 +38,7 @@ namespace TournamentWizard.ViewModels
             {
                 _outputItems = value;
                 OnPropertyChanged(nameof(OutputItems));
+                OnPropertyChanged(nameof(OptimizeVisible));
             }
         }
 
@@ -184,6 +186,14 @@ namespace TournamentWizard.ViewModels
 
         public bool Choice1Visible => Choice1 is not null;
         public bool Choice2Visible => Choice2 is not null;
+
+        public bool OptimizeVisible => OutputItems.Count > 0 && InputItems.Count == 0;
+
+        public MainViewModel()
+        {
+            _inputItems.CollectionChanged += (s, e) => OnPropertyChanged(nameof(OptimizeVisible));
+        }
+
 
         void StartTournament()
         {
@@ -545,6 +555,8 @@ namespace TournamentWizard.ViewModels
                             else
                                 OutputItems.Clear();
 
+                            OutputSelected = OutputItems.Count - 1;
+
                             if (Data.Choices is not null)
                                 Choices = Data.Choices;
                             else
@@ -771,6 +783,45 @@ namespace TournamentWizard.ViewModels
                 else
                     await Dispatcher.UIThread.InvokeAsync(() => PercentMatch = " (" + percent.ToString("P2") + " of possible choices matched - " + (total - match).ToString("N0") + " left)");
             });            
+        }
+
+        //Command Handler for optimizing schedule
+        public CommandHandler OptimizeSorting => new CommandHandler(Optimize_Sorting);
+
+        public void Optimize_Sorting()
+        {
+            //First, gather all of the output items without their numbers
+            var CurrentOutputs = new List<string>();
+
+            int index = 0;
+
+            foreach (var item in OutputItems)
+            {
+                //Find where the decimal is
+                index = item.IndexOf(".");
+
+                //Get substring
+                index += 2;
+                var CurrentItem = item.Substring(index, item.Length - index);
+
+                CurrentOutputs.Add(CurrentItem);
+            }
+
+            //Generate an IEnumerable which includes every output item, the original index, and the average win %
+            var OutputData = CurrentOutputs.AsParallel().Select((x, i) =>
+            {
+                //Calculate the percentage of successes with this item in memory
+                var success = Choices.Where(c => c.Key.Item1 == x).Select(c => c.Value == x ? 1.0 : 0.0).Average();
+
+                return new { Item = x, Rank = i, Success = success };
+            }).OrderByDescending(x => x.Success).ThenBy(x => x.Rank).ToList();
+
+            //Replace the existing outputs with the optimized list
+            OutputItems.Clear();
+            for (int i = 0; i < OutputData.Count; i++)
+            {
+                OutputItems.Add((i + 1) + ". " + OutputData[i].Item);
+            }
         }
     }
 }

@@ -20,6 +20,7 @@
         <Setter Property="FontSize" Value="24"/>
         <Setter Property="Padding" Value="15"/>
         <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="Focusable" Value="False"/>
       </Style>
       <Style Selector="ListBoxItem">
         <Setter Property="Focusable" Value="False"/>
@@ -90,21 +91,20 @@
           <Setter Property="VerticalAlignment" Value="Stretch"/>
           <Setter Property="Margin" Value="5"/>
         </Style>
+        <Style Selector="Button">
+          <Setter Property="FontSize" Value="16"/>
+          <Setter Property="Padding" Value="7.5"/>
+          <Setter Property="FontWeight" Value="Normal"/>
+          <Setter Property="Margin" Value="5"/>
+        </Style>
       </Grid.Styles>
 
       <StackPanel VerticalAlignment="Center" IsVisible="{Binding DeleteVisible}">
-        <StackPanel.Styles>
-          <Style Selector="Button">
-            <Setter Property="FontSize" Value="16"/>
-            <Setter Property="Padding" Value="7.5"/>
-            <Setter Property="FontWeight" Value="Normal"/>
-            <Setter Property="Margin" Value="5"/>
-          </Style>
-        </StackPanel.Styles>
         <Button Content="Delete Choices" Command="{Binding Delete_Click}"/>
         <Button Content="Replace Choices" Command="{Binding Start_Replacement}"/>
       </StackPanel>
 
+      <Button Content="Optimize Sorting" VerticalAlignment="Center" HorizontalAlignment="Right" Grid.Column="2" IsVisible="{Binding OptimizeVisible}" Command="{Binding OptimizeSorting}"/>
 
       <StackPanel HorizontalAlignment="Center" Grid.ColumnSpan="3" VerticalAlignment="Center" >
         <TextBlock Text="{Binding StoredChoices, StringFormat={}{0:N0} Choices Remembered}" FontSize="14" HorizontalAlignment="Center"/>
