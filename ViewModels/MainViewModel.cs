@@ -189,12 +189,6 @@ namespace TournamentWizard.ViewModels
 
         public bool OptimizeVisible => OutputItems.Count > 0 && InputItems.Count == 0;
 
-        public MainViewModel()
-        {
-            _inputItems.CollectionChanged += (s, e) => OnPropertyChanged(nameof(OptimizeVisible));
-        }
-
-
         void StartTournament()
         {
 
@@ -389,6 +383,8 @@ namespace TournamentWizard.ViewModels
 
                     if (InputItems.Count > 0)
                         StartTournament();
+
+                    OnPropertyChanged(nameof(OptimizeVisible));
                 }
             }
         }
