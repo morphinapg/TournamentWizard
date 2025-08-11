@@ -8,9 +8,11 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
+using System.Timers;
 using System.Xml;
 
 namespace TournamentWizard.ViewModels
@@ -39,6 +41,7 @@ namespace TournamentWizard.ViewModels
                 _outputItems = value;
                 OnPropertyChanged(nameof(OutputItems));
                 OnPropertyChanged(nameof(OptimizeVisible));
+                OnPropertyChanged(nameof(CopyVisible));
             }
         }
 
@@ -385,6 +388,7 @@ namespace TournamentWizard.ViewModels
                         StartTournament();
 
                     OnPropertyChanged(nameof(OptimizeVisible));
+                    OnPropertyChanged(nameof(CopyVisible));
                 }
             }
         }
@@ -819,5 +823,73 @@ namespace TournamentWizard.ViewModels
                 OutputItems.Add((i + 1) + ". " + OutputData[i].Item);
             }
         }
+
+        bool _withNumbers = true;
+        public bool WithNumbers
+        {
+            get => _withNumbers;
+            set
+            {
+                _withNumbers = value;
+                OnPropertyChanged(nameof(WithNumbers));
+            }
+        }
+
+        double _clipboardOpacity = 0;
+        public double ClipboardOpacity
+        {
+            get => _clipboardOpacity;
+            set
+            {
+                _clipboardOpacity = value;
+                OnPropertyChanged(nameof(ClipboardOpacity));
+            }
+        }
+
+        public CommandHandler CopyOutputs => new CommandHandler(async () =>
+        {
+            if (CurrentApp.TopLevel is not null && CurrentApp.TopLevel.Clipboard is not null)
+            {
+                string clipboard = "";
+                if (WithNumbers)
+                {
+                    foreach (var item in OutputItems)
+                        clipboard += string.IsNullOrEmpty(clipboard) ? item : "\r\n" + item;
+                }
+                else
+                {
+                    int index = 0;
+                    foreach (var item in OutputItems)
+                    {
+                        //Find where the decimal is
+                        index = item.IndexOf(".");
+
+                        //Get substring
+                        index += 2;
+                        var CurrentItem = item.Substring(index, item.Length - index);
+
+                        clipboard += string.IsNullOrEmpty(clipboard) ? CurrentItem : "\r\n" + CurrentItem;
+                    }
+                }
+
+                await CurrentApp.TopLevel.Clipboard.SetTextAsync(clipboard);
+
+                ClipboardOpacity = 1;
+                FadeTimer.Start();
+            }            
+        });
+
+        Timer FadeTimer = new Timer(100);
+        public MainViewModel()
+        {
+            FadeTimer.Elapsed += async (s, e) =>
+            {
+                await Dispatcher.UIThread.InvokeAsync(() => ClipboardOpacity -= 0.05);
+                if (ClipboardOpacity <= 0)
+                    FadeTimer.Stop();
+            };
+        }
+
+        public bool CopyVisible => OutputItems.Count > 0;
     }
 }
