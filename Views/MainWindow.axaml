@@ -63,7 +63,7 @@
 
     <StackPanel VerticalAlignment="Top" HorizontalAlignment="Right" Grid.Row="1" Grid.Column="1" IsVisible="{Binding CopyVisible}">
       <Button Content="📄 Copy Output Items" FontSize="16" Padding="7.5" FontWeight="Normal" HorizontalAlignment="Right" Command="{Binding CopyOutputs}"/>
-      <CheckBox Content="With Numbers" HorizontalAlignment="Right" Margin="20,0" IsChecked="{Binding WithNumbers}"/>
+      <CheckBox Content="With Numbers" HorizontalAlignment="Right" Margin="20,0" IsChecked="{Binding WithNumbers}" Focusable="False"/>
       <TextBlock Text="Outputs copied to clipboard" HorizontalAlignment="Right" Margin="20,5" Foreground="Green" Opacity="{Binding ClipboardOpacity}"/>
     </StackPanel>
 

@@ -811,7 +811,7 @@ namespace TournamentWizard.ViewModels
             var OutputData = CurrentOutputs.AsParallel().Select((x, i) =>
             {
                 //Calculate the percentage of successes with this item in memory
-                var success = Choices.Where(c => c.Key.Item1 == x).Select(c => c.Value == x ? 1.0 : 0.0).Average();
+                var success = Choices.Where(c => c.Key.Item1 == x && CurrentOutputs.Contains(c.Key.Item2)).Select(c => c.Value == x ? 1.0 : 0.0).Average();
 
                 return new { Item = x, Rank = i, Success = success };
             }).OrderByDescending(x => x.Success).ThenBy(x => x.Rank).ToList();
