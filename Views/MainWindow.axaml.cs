@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.SimplePreferences;
@@ -23,6 +24,17 @@ namespace TournamentWizard.Views
                 Width = width;
                 Height = height;
                 Position = new PixelPoint(left, top);                
+            }
+        }
+
+        protected override void OnDataContextChanged(EventArgs e)
+        {
+            base.OnDataContextChanged(e);
+
+            if (DataContext is MainViewModel model)
+            {
+                model.Flyout = Rename.Flyout;
+                model.TextBox = RenameBox;
             }
         }
 

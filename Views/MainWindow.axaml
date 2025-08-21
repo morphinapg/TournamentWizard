@@ -61,10 +61,15 @@
       </StackPanel>
     </Grid>
 
-    <StackPanel VerticalAlignment="Top" HorizontalAlignment="Right" Grid.Row="1" Grid.Column="1" IsVisible="{Binding CopyVisible}">
+    <StackPanel VerticalAlignment="Top" HorizontalAlignment="Left" Grid.Row="1" Grid.Column="1">
+      <Button Content="📄 Copy All Items" FontSize="16" Padding="7.5" FontWeight="Normal" HorizontalAlignment="Left" VerticalAlignment="Top" Command="{Binding CopyAllItems}"/>
+      <TextBlock Text="Outputs copied to clipboard" HorizontalAlignment="Right" Margin="20,5" Foreground="Green" Opacity="{Binding ClipboardOpacity}"/>
+    </StackPanel>
+
+    <StackPanel VerticalAlignment="Top" HorizontalAlignment="Right" Grid.Row="1" Grid.Column="1" IsVisible="{Binding OutputCopyVisible}">
       <Button Content="📄 Copy Output Items" FontSize="16" Padding="7.5" FontWeight="Normal" HorizontalAlignment="Right" Command="{Binding CopyOutputs}"/>
       <CheckBox Content="With Numbers" HorizontalAlignment="Right" Margin="20,0" IsChecked="{Binding WithNumbers}" Focusable="False"/>
-      <TextBlock Text="Outputs copied to clipboard" HorizontalAlignment="Right" Margin="20,5" Foreground="Green" Opacity="{Binding ClipboardOpacity}"/>
+      <TextBlock Text="Outputs copied to clipboard" HorizontalAlignment="Right" Margin="20,5" Foreground="Green" Opacity="{Binding OutputClipboardOpacity}"/>
     </StackPanel>
 
 
@@ -109,6 +114,16 @@
       <StackPanel VerticalAlignment="Center" IsVisible="{Binding DeleteVisible}">
         <Button Content="Delete Choices" Command="{Binding Delete_Click}"/>
         <Button Content="Replace Choices" Command="{Binding Start_Replacement}"/>
+        <Button Content="Rename Item" x:Name="Rename">
+          <Button.Flyout>
+            <Flyout>
+              <StackPanel>
+                <TextBox Classes="clearButton" Text="{Binding NewName}" x:Name="RenameBox"/>
+                <Button Content="Save" Command="{Binding RenameItem}" HorizontalAlignment="Right" IsDefault="True"/>
+              </StackPanel>
+            </Flyout>
+          </Button.Flyout>
+        </Button>
       </StackPanel>
 
       <Button Content="Optimize Sorting" VerticalAlignment="Center" HorizontalAlignment="Right" Grid.Column="2" IsVisible="{Binding OptimizeVisible}" Command="{Binding OptimizeSorting}"/>

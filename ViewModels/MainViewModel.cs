@@ -1,8 +1,10 @@
 ﻿using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using MsBox.Avalonia;
+using MsBox.Avalonia.Dto;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -30,6 +32,7 @@ namespace TournamentWizard.ViewModels
                 _inputItems = value;
                 OnPropertyChanged(nameof(InputItems));
                 OnPropertyChanged(nameof(OptimizeVisible));
+                OnPropertyChanged(nameof(CopyVisible));
             }
         }
 
@@ -41,6 +44,7 @@ namespace TournamentWizard.ViewModels
                 _outputItems = value;
                 OnPropertyChanged(nameof(OutputItems));
                 OnPropertyChanged(nameof(OptimizeVisible));
+                OnPropertyChanged(nameof(OutputCopyVisible));
                 OnPropertyChanged(nameof(CopyVisible));
             }
         }
@@ -67,7 +71,7 @@ namespace TournamentWizard.ViewModels
         [DataMember]
         int _currentTotal = 0, _totalTotal = 0, _currentProgress = 0, _totalProgress = 0;
 
-        string? _selectedItem = null;
+        string? _selectedItem = null, _newName = null;
         public string? SelectedItem
         {
             get => _selectedItem;
@@ -76,6 +80,21 @@ namespace TournamentWizard.ViewModels
                 _selectedItem = value;
                 OnPropertyChanged(nameof(SelectedItem));
                 OnPropertyChanged(nameof(DeleteVisible));
+
+                NewName = value;
+            }
+        }
+
+        public string? NewName
+        {
+            get => _newName;
+            set
+            {
+                _newName = value;
+                OnPropertyChanged(nameof(NewName));
+
+                if (TextBox is not null && value is not null)
+                    TextBox.CaretIndex = value.Length;
             }
         }
 
@@ -388,6 +407,7 @@ namespace TournamentWizard.ViewModels
                         StartTournament();
 
                     OnPropertyChanged(nameof(OptimizeVisible));
+                    OnPropertyChanged(nameof(OutputCopyVisible));
                     OnPropertyChanged(nameof(CopyVisible));
                 }
             }
@@ -718,6 +738,9 @@ namespace TournamentWizard.ViewModels
         public void DeselectItem()
         {
             SelectedItem = null;
+
+            if (Flyout is not null)
+                Flyout.Hide();
         }
 
         public CommandHandler Delete_Click => new CommandHandler(DeleteItem);
@@ -835,6 +858,17 @@ namespace TournamentWizard.ViewModels
             }
         }
 
+        double _outputClipboardOpacity = 0;
+        public double OutputClipboardOpacity
+        {
+            get => _outputClipboardOpacity;
+            set
+            {
+                _outputClipboardOpacity = value;
+                OnPropertyChanged(nameof(OutputClipboardOpacity));
+            }
+        }
+
         double _clipboardOpacity = 0;
         public double ClipboardOpacity
         {
@@ -874,7 +908,7 @@ namespace TournamentWizard.ViewModels
 
                 await CurrentApp.TopLevel.Clipboard.SetTextAsync(clipboard);
 
-                ClipboardOpacity = 1;
+                OutputClipboardOpacity = 1;
                 FadeTimer.Start();
             }            
         });
@@ -884,12 +918,130 @@ namespace TournamentWizard.ViewModels
         {
             FadeTimer.Elapsed += async (s, e) =>
             {
-                await Dispatcher.UIThread.InvokeAsync(() => ClipboardOpacity -= 0.05);
-                if (ClipboardOpacity <= 0)
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    ClipboardOpacity -= 0.05;
+                    OutputClipboardOpacity -= 0.05;
+
+                    if (ClipboardOpacity < 0)
+                        ClipboardOpacity = 0;
+
+                    if (OutputClipboardOpacity < 0)
+                        OutputClipboardOpacity = 0;
+                });
+                if (OutputClipboardOpacity == 0 && ClipboardOpacity ==0)
                     FadeTimer.Stop();
             };
         }
 
-        public bool CopyVisible => OutputItems.Count > 0;
+        public bool OutputCopyVisible => OutputItems.Count > 0;
+
+        public bool CopyVisible => InputItems.Count > 0 || OutputItems.Count > 0;
+
+        public CommandHandler CopyAllItems => new CommandHandler(async () =>
+        {
+            if (CurrentApp.TopLevel is not null && CurrentApp.TopLevel.Clipboard is not null)
+            {
+                var AllItems = InputItems.ToList();
+
+                if (OutputItems.Any())
+                {
+                    int index = 0;
+                    foreach (var item in OutputItems)
+                    {
+                        //Find where the decimal is
+                        index = item.IndexOf(".");
+
+                        //Get substring
+                        index += 2;
+                        var CurrentItem = item.Substring(index, item.Length - index);
+
+                        AllItems.Add(CurrentItem);
+                    }
+
+                    AllItems.Sort();
+                }
+
+                string clipboard = "";
+
+                foreach (var item in AllItems)
+                    clipboard += string.IsNullOrEmpty(clipboard) ? item : "\r\n" + item;
+
+                await CurrentApp.TopLevel.Clipboard.SetTextAsync(clipboard);
+
+                ClipboardOpacity = 1;
+                FadeTimer.Start();
+            }
+        });
+
+        public FlyoutBase? Flyout;
+
+        public TextBox? TextBox;
+
+        public CommandHandler RenameItem => new CommandHandler(async () =>
+        {
+            var OldName = SelectedItem;
+
+            if (OldName is not null && NewName is not null)
+            {
+                var matches = Choices.Where(x => x.Key.Item1 == OldName || x.Key.Item2 == OldName).ToList();
+
+                foreach (var item in matches)
+                {
+                    var item1 = item.Key.Item1;
+                    var item2 = item.Key.Item2;
+                    var value = item.Value;
+
+                    Choices.Remove((item1, item2));
+
+                    if (item1 == OldName)
+                        item1 = NewName;
+
+                    else if (item2 == OldName)
+                        item2 = NewName;
+
+                    if (value == OldName) 
+                        value = NewName;
+
+                    Choices[(item1, item2)] = value;                    
+                }
+
+                foreach (var tier in Tiers)
+                {
+                    for (int i = 0; i < tier.Inputs.Count; i++)
+                        if (tier.Inputs[i] == OldName)
+                            tier.Inputs[i] = NewName;
+
+                    for (int i = 0; i < tier.Outputs.Count; i++)
+                        if (tier.Outputs[i] == OldName)
+                            tier.Outputs[i] = NewName;
+                }
+
+                if (ReplacementTier is not null)
+                {
+                    for (int i = 0; i < ReplacementTier.Inputs.Count; i++)
+                        if (ReplacementTier.Inputs[i] == OldName)
+                            ReplacementTier.Inputs[i] = NewName;
+
+                    for (int i = 0; i < ReplacementTier.Outputs.Count; i++)
+                        if (ReplacementTier.Outputs[i] == OldName)
+                            ReplacementTier.Outputs[i] = NewName;
+                }
+
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    if (Choice1 == OldName)
+                        Choice1 = NewName;
+
+                    if (Choice2 == OldName)
+                        Choice2 = NewName;
+
+                    InputItems = new ObservableCollection<string>(InputItems.Select(x => x == OldName ? NewName : x).Order());
+
+                    if (Flyout is not null)
+                        Flyout.Hide();
+                });
+            }
+        });
     }
 }
