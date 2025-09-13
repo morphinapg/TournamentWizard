@@ -63,7 +63,7 @@
 
     <StackPanel VerticalAlignment="Top" HorizontalAlignment="Left" Grid.Row="1" Grid.Column="1">
       <Button Content="📄 Copy All Items" FontSize="16" Padding="7.5" FontWeight="Normal" HorizontalAlignment="Left" VerticalAlignment="Top" Command="{Binding CopyAllItems}"/>
-      <TextBlock Text="Outputs copied to clipboard" HorizontalAlignment="Right" Margin="20,5" Foreground="Green" Opacity="{Binding ClipboardOpacity}"/>
+      <TextBlock Text="Items copied to clipboard" HorizontalAlignment="Right" Margin="20,5" Foreground="Green" Opacity="{Binding ClipboardOpacity}"/>
     </StackPanel>
 
     <StackPanel VerticalAlignment="Top" HorizontalAlignment="Right" Grid.Row="1" Grid.Column="1" IsVisible="{Binding OutputCopyVisible}">

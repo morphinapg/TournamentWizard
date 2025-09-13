@@ -82,6 +82,8 @@ namespace TournamentWizard.ViewModels
                 OnPropertyChanged(nameof(DeleteVisible));
 
                 NewName = value;
+                if (TextBox is not null && value is not null)
+                    TextBox.CaretIndex = value.Length;
             }
         }
 
@@ -93,8 +95,7 @@ namespace TournamentWizard.ViewModels
                 _newName = value;
                 OnPropertyChanged(nameof(NewName));
 
-                if (TextBox is not null && value is not null)
-                    TextBox.CaretIndex = value.Length;
+                
             }
         }
 
@@ -168,6 +169,7 @@ namespace TournamentWizard.ViewModels
                         var items = text.Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries).Order().Distinct().ToList();
 
                         OutputItems.Clear();
+                        OnPropertyChanged(nameof(OutputCopyVisible));
                         Undo.Clear();
                         Tiers.Clear();
                         OnPropertyChanged(nameof(UndoVisible));
@@ -830,24 +832,37 @@ namespace TournamentWizard.ViewModels
                 CurrentOutputs.Add(CurrentItem);
             }
 
-            //Generate an IEnumerable which includes every output item, the original index, and the average win %
-            var OutputData = CurrentOutputs.AsParallel().Select((x, i) =>
-            {
-                //Calculate the percentage of successes with this item in memory
-                var success = Choices.Where(c => c.Key.Item1 == x && CurrentOutputs.Contains(c.Key.Item2)).Select(c => c.Value == x ? 1.0 : 0.0).Average();
+            var NewOutputs = new List<string>();
 
-                return new { Item = x, Rank = i, Success = success };
-            }).OrderByDescending(x => x.Success).ThenBy(x => x.Rank).ToList();
+            int count = CurrentOutputs.Count;
+
+            for (int i = 0; i < count; i++)
+            {
+                //Look through all remaining options and determine which has the highest success rate
+                var NextWinner = CurrentOutputs.AsParallel().Select((x, i) =>
+                {
+                    //Calculate the percentage of successes with this item in memory
+                    var matchups = Choices.Where(c => c.Key.Item1 == x && CurrentOutputs.Contains(c.Key.Item2)).Select(c => c.Value == x ? 1.0 : 0.0);
+
+                    var success = matchups.Any() ? matchups.Average() : 0.5; //If no matchups exist, assume a 50% success rate (most likely shouldn't happen)
+
+                    return new { Item = x, Rank = i, Success = success };
+                }).OrderByDescending(x => x.Success).ThenBy(x => x.Rank).First();
+
+                //Add the winner to the new output list
+                NewOutputs.Add((i + 1) + ". " + NextWinner.Item);
+
+                //Remove the winner from the current output list
+                CurrentOutputs.Remove(NextWinner.Item);
+            }
 
             //Replace the existing outputs with the optimized list
             OutputItems.Clear();
-            for (int i = 0; i < OutputData.Count; i++)
-            {
-                OutputItems.Add((i + 1) + ". " + OutputData[i].Item);
-            }
+            for (int i = 0; i < NewOutputs.Count; i++)
+                OutputItems.Add(NewOutputs[i]);
         }
 
-        bool _withNumbers = true;
+        bool _withNumbers = false;
         public bool WithNumbers
         {
             get => _withNumbers;
@@ -992,7 +1007,7 @@ namespace TournamentWizard.ViewModels
                     var item2 = item.Key.Item2;
                     var value = item.Value;
 
-                    Choices.Remove((item1, item2));
+                    Choices.Remove(item.Key);
 
                     if (item1 == OldName)
                         item1 = NewName;
