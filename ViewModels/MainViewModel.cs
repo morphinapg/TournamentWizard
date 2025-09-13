@@ -813,7 +813,7 @@ namespace TournamentWizard.ViewModels
         //Command Handler for optimizing schedule
         public CommandHandler OptimizeSorting => new CommandHandler(Optimize_Sorting);
 
-        public void Optimize_Sorting()
+        public async void Optimize_Sorting()
         {
             //First, gather all of the output items without their numbers
             var CurrentOutputs = new List<string>();
@@ -832,34 +832,33 @@ namespace TournamentWizard.ViewModels
                 CurrentOutputs.Add(CurrentItem);
             }
 
-            var NewOutputs = new List<string>();
-
             int count = CurrentOutputs.Count;
-
-            for (int i = 0; i < count; i++)
-            {
-                //Look through all remaining options and determine which has the highest success rate
-                var NextWinner = CurrentOutputs.AsParallel().Select((x, i) =>
-                {
-                    //Calculate the percentage of successes with this item in memory
-                    var matchups = Choices.Where(c => c.Key.Item1 == x && CurrentOutputs.Contains(c.Key.Item2)).Select(c => c.Value == x ? 1.0 : 0.0);
-
-                    var success = matchups.Any() ? matchups.Average() : 0.5; //If no matchups exist, assume a 50% success rate (most likely shouldn't happen)
-
-                    return new { Item = x, Rank = i, Success = success };
-                }).OrderByDescending(x => x.Success).ThenBy(x => x.Rank).First();
-
-                //Add the winner to the new output list
-                NewOutputs.Add((i + 1) + ". " + NextWinner.Item);
-
-                //Remove the winner from the current output list
-                CurrentOutputs.Remove(NextWinner.Item);
-            }
-
-            //Replace the existing outputs with the optimized list
             OutputItems.Clear();
-            for (int i = 0; i < NewOutputs.Count; i++)
-                OutputItems.Add(NewOutputs[i]);
+
+            await Task.Run(async () =>
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    //Look through all remaining options and determine which has the highest success rate
+                    var NextWinner = CurrentOutputs.AsParallel().Select((x, i) =>
+                    {
+                        //Calculate the percentage of successes with this item in memory
+                        var matchups = Choices.Where(c => c.Key.Item1 == x && CurrentOutputs.Contains(c.Key.Item2)).Select(c => c.Value == x ? 1.0 : 0.0);
+
+                        var success = matchups.Any() ? matchups.Average() : 1.0 - CurrentOutputs.IndexOf(x) / (double)(CurrentOutputs.Count - 1); //If no matchups exist, use the current position as a fallback (should be rare)
+
+                        return new { Item = x, Rank = i, Success = success };
+                    }).OrderByDescending(x => x.Success).ThenBy(x => x.Rank).First();
+
+                    //Add the winner to the new output list
+                    await Dispatcher.UIThread.InvokeAsync(() => OutputItems.Add((i + 1) + ". " + NextWinner.Item));
+
+                    //Remove the winner from the current output list
+                    CurrentOutputs.Remove(NextWinner.Item);
+                }
+            });
+
+            
         }
 
         bool _withNumbers = false;
