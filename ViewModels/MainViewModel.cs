@@ -836,6 +836,8 @@ namespace TournamentWizard.ViewModels
             OutputItems.Clear();
             OnPropertyChanged(nameof(OptimizeVisible));
 
+            ButtonsEnabled = false;
+
             await Task.Run(async () =>
             {
                 bool match = false;
@@ -872,8 +874,7 @@ namespace TournamentWizard.ViewModels
                                     //Calculate the percentage of successes with this item in memory
                                     var matchups = Choices.Where(c => c.Key.Item1 == x && CurrentSet.Contains(c.Key.Item2)).Select(c => c.Value == x ? 1.0 : 0.0);
 
-                                    var success = matchups.Any() ? matchups.Average() : 1.0 - CurrentSet.IndexOf(x) / (double)(CurrentSet.Count - 1); //If no matchups exist, use the current position as a fallback (should be rare)
-
+                                    var success = matchups.Any() ? matchups.Average() : 0.5; //If no matchups exist, use 0.5 to represent random chance, and use previous rank as a fallback 
                                     return new { Item = x, Rank = i, Success = success };
                                 }).OrderByDescending(x => x.Success).ThenBy(x => x.Rank).ToList();
 
@@ -891,6 +892,26 @@ namespace TournamentWizard.ViewModels
                                 }
                                 else
                                 {
+                                    //Check for 0.5 values and modify the score to reflect the average success rate in the subset
+                                    if (SortedItems.Any(x => x.Success == 0.5))
+                                    {
+                                        var SuccessItems = SortedItems.Where(x => x.Success != 0.5).ToList();
+
+                                        //Only modify if there are success items to average, and the minimum success rate is greater than 0.5
+                                        if (SuccessItems.Any() && SuccessItems.Min(x => x.Success) > 0.5)
+                                        {
+                                            //Calculate the average success rate of all items that are not 0.5
+                                            var AverageSuccess = SuccessItems.Average(x => x.Success);
+
+                                            for (int k = 0; k < SortedItems.Count; k++)
+                                                if (SortedItems[k].Success == 0.5)
+                                                    SortedItems[k] = new { Item = SortedItems[k].Item, Rank = SortedItems[k].Rank, Success = AverageSuccess };
+
+                                            // Re-sort the list
+                                            SortedItems = SortedItems.OrderByDescending(x => x.Success).ThenBy(x => x.Rank).ToList();
+                                        }
+                                    }
+
                                     //No item has a 100% success rate, so we need to eliminate the item with the lowest success rate
                                     var BottomItem = SortedItems.Last();
                                     Eliminated.Add(BottomItem.Item);
@@ -907,7 +928,21 @@ namespace TournamentWizard.ViewModels
                 }
             });
 
-            OnPropertyChanged(nameof(OptimizeVisible));
+            //OnPropertyChanged(nameof(OptimizeVisible));
+            ButtonsEnabled = true;
+            OptimizeOpacity = 1;
+            FadeOptimizeTimer.Start();
+        }
+
+        bool _buttonsEnabled = true;
+        public bool ButtonsEnabled
+        {
+            get => _buttonsEnabled;
+            set
+            {
+                _buttonsEnabled = value;
+                OnPropertyChanged(nameof(ButtonsEnabled));
+            }
         }
 
         bool _withNumbers = false;
@@ -976,7 +1011,7 @@ namespace TournamentWizard.ViewModels
             }            
         });
 
-        Timer FadeTimer = new Timer(100);
+        Timer FadeTimer = new Timer(100), FadeOptimizeTimer = new Timer(100);
         public MainViewModel()
         {
             FadeTimer.Elapsed += async (s, e) =>
@@ -995,6 +1030,29 @@ namespace TournamentWizard.ViewModels
                 if (OutputClipboardOpacity == 0 && ClipboardOpacity ==0)
                     FadeTimer.Stop();
             };
+
+            FadeOptimizeTimer.Elapsed += async (s, e) =>
+            {
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    OptimizeOpacity -= 0.05;
+                    if (OptimizeOpacity < 0)
+                        OptimizeOpacity = 0;
+                });
+                if (OptimizeOpacity == 0)
+                    FadeOptimizeTimer.Stop();
+            };
+        }
+
+        double _optimizeOpacity = 0;
+        public double OptimizeOpacity
+        {
+            get => _optimizeOpacity;
+            set
+            {
+                _optimizeOpacity = value;
+                OnPropertyChanged(nameof(OptimizeOpacity));
+            }
         }
 
         public bool OutputCopyVisible => OutputItems.Count > 0;
