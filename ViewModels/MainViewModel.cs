@@ -834,31 +834,80 @@ namespace TournamentWizard.ViewModels
 
             int count = CurrentOutputs.Count;
             OutputItems.Clear();
+            OnPropertyChanged(nameof(OptimizeVisible));
 
             await Task.Run(async () =>
             {
+                bool match = false;
+                int CurrentCount = 0;
+                var Eliminated = new List<string>();
+
                 for (int i = 0; i < count; i++)
                 {
-                    //Look through all remaining options and determine which has the highest success rate
-                    var NextWinner = CurrentOutputs.AsParallel().Select((x, i) =>
+                    CurrentCount = CurrentOutputs.Count;
+                    Eliminated.Clear();
+                    match = false;
+
+                    if (CurrentCount > 1)
                     {
-                        //Calculate the percentage of successes with this item in memory
-                        var matchups = Choices.Where(c => c.Key.Item1 == x && CurrentOutputs.Contains(c.Key.Item2)).Select(c => c.Value == x ? 1.0 : 0.0);
+                        //Search for the next item to eliminate
+                        for (int j = 0; j < CurrentCount && !match; j++)
+                        {
+                            //Create a subset of items that do not include eliminated items
+                            var CurrentSet = CurrentOutputs.Except(Eliminated).ToList();
 
-                        var success = matchups.Any() ? matchups.Average() : 1.0 - CurrentOutputs.IndexOf(x) / (double)(CurrentOutputs.Count - 1); //If no matchups exist, use the current position as a fallback (should be rare)
+                            if (CurrentSet.Count == 1)
+                            {
+                                match = true;
 
-                        return new { Item = x, Rank = i, Success = success };
-                    }).OrderByDescending(x => x.Success).ThenBy(x => x.Rank).First();
+                                //Only one item remains, so just add it to the list
+                                await Dispatcher.UIThread.InvokeAsync(() => OutputItems.Add((i + 1) + ". " + CurrentSet[0]));
+                                CurrentOutputs.Remove(CurrentSet[0]);
+                            }
+                            else
+                            {
+                                //Look through all remaining options and sort by chance of success
+                                var SortedItems = CurrentSet.AsParallel().Select((x, i) =>
+                                {
+                                    //Calculate the percentage of successes with this item in memory
+                                    var matchups = Choices.Where(c => c.Key.Item1 == x && CurrentSet.Contains(c.Key.Item2)).Select(c => c.Value == x ? 1.0 : 0.0);
 
-                    //Add the winner to the new output list
-                    await Dispatcher.UIThread.InvokeAsync(() => OutputItems.Add((i + 1) + ". " + NextWinner.Item));
+                                    var success = matchups.Any() ? matchups.Average() : 1.0 - CurrentSet.IndexOf(x) / (double)(CurrentSet.Count - 1); //If no matchups exist, use the current position as a fallback (should be rare)
 
-                    //Remove the winner from the current output list
-                    CurrentOutputs.Remove(NextWinner.Item);
+                                    return new { Item = x, Rank = i, Success = success };
+                                }).OrderByDescending(x => x.Success).ThenBy(x => x.Rank).ToList();
+
+                                //Check if the top item has a 100% success rate
+                                var TopItem = SortedItems.First();
+                                if (TopItem.Success == 1.0)
+                                {
+                                    match = true;
+
+                                    //Add the winner to the new output list
+                                    await Dispatcher.UIThread.InvokeAsync(() => OutputItems.Add((i + 1) + ". " + TopItem.Item));
+
+                                    //Remove the winner from the current output list
+                                    CurrentOutputs.Remove(TopItem.Item);
+                                }
+                                else
+                                {
+                                    //No item has a 100% success rate, so we need to eliminate the item with the lowest success rate
+                                    var BottomItem = SortedItems.Last();
+                                    Eliminated.Add(BottomItem.Item);
+                                }
+                            }                            
+                        }                        
+                    }
+                    else
+                    {
+                        //Only one item remains, so just add it to the list
+                        await Dispatcher.UIThread.InvokeAsync(() => OutputItems.Add((i + 1) + ". " + CurrentOutputs[0]));
+                        CurrentOutputs.RemoveAt(0);
+                    }                    
                 }
             });
 
-            
+            OnPropertyChanged(nameof(OptimizeVisible));
         }
 
         bool _withNumbers = false;
