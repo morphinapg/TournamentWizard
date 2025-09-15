@@ -815,6 +815,28 @@ namespace TournamentWizard.ViewModels
 
         public async void Optimize_Sorting()
         {
+            //Temporarily store the original TotalToal value
+            var OriginalTotal = TotalTotal;
+
+            //Set Total Progress Bar values to work with the output items
+            TotalProgress = 0;
+            int count = OutputItems.Count;
+            TotalTotal = count * (count + 1) / 2;
+
+            int OptimizeProgress = 0; //Temporary variable to track progress
+
+
+            var OptimizeTimer = new Timer(1.0 / 120 * 1000);
+            OptimizeTimer.Elapsed += async (s, e) => await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                OptimizeTimer.Stop();
+                if (OptimizeProgress > TotalProgress) 
+                    TotalProgress = OptimizeProgress;
+
+                OptimizeTimer.Start();
+            });
+            OptimizeTimer.Start();
+
             //First, gather all of the output items without their numbers
             var CurrentOutputs = new List<string>();
 
@@ -832,7 +854,6 @@ namespace TournamentWizard.ViewModels
                 CurrentOutputs.Add(CurrentItem);
             }
 
-            int count = CurrentOutputs.Count;
             OutputItems.Clear();
             OnPropertyChanged(nameof(OptimizeVisible));
 
@@ -865,6 +886,8 @@ namespace TournamentWizard.ViewModels
                                 //Only one item remains, so just add it to the list
                                 await Dispatcher.UIThread.InvokeAsync(() => OutputItems.Add((i + 1) + ". " + CurrentSet[0]));
                                 CurrentOutputs.Remove(CurrentSet[0]);
+
+                                OptimizeProgress++;
                             }
                             else
                             {
@@ -889,32 +912,34 @@ namespace TournamentWizard.ViewModels
 
                                     //Remove the winner from the current output list
                                     CurrentOutputs.Remove(TopItem.Item);
+                                    OptimizeProgress += CurrentSet.Count; //All remaining items will be eliminated
                                 }
                                 else
                                 {
-                                    //Check for 0.5 values and modify the score to reflect the average success rate in the subset
-                                    if (SortedItems.Any(x => x.Success == 0.5))
-                                    {
-                                        var SuccessItems = SortedItems.Where(x => x.Success != 0.5).ToList();
+                                    ////Check for 0.5 values and modify the score to reflect the average success rate in the subset
+                                    //if (SortedItems.Any(x => x.Success == 0.5))
+                                    //{
+                                    //    var SuccessItems = SortedItems.Where(x => x.Success != 0.5).ToList();
 
-                                        //Only modify if there are success items to average, and the minimum success rate is greater than 0.5
-                                        if (SuccessItems.Any() && SuccessItems.Min(x => x.Success) > 0.5)
-                                        {
-                                            //Calculate the average success rate of all items that are not 0.5
-                                            var AverageSuccess = SuccessItems.Average(x => x.Success);
+                                    //    //Only modify if there are success items to average, and the minimum success rate is greater than 0.5
+                                    //    if (SuccessItems.Any() && SuccessItems.Min(x => x.Success) > 0.5)
+                                    //    {
+                                    //        //Calculate the average success rate of all items that are not 0.5
+                                    //        var AverageSuccess = SuccessItems.Average(x => x.Success);
 
-                                            for (int k = 0; k < SortedItems.Count; k++)
-                                                if (SortedItems[k].Success == 0.5)
-                                                    SortedItems[k] = new { Item = SortedItems[k].Item, Rank = SortedItems[k].Rank, Success = AverageSuccess };
+                                    //        for (int k = 0; k < SortedItems.Count; k++)
+                                    //            if (SortedItems[k].Success == 0.5)
+                                    //                SortedItems[k] = new { Item = SortedItems[k].Item, Rank = SortedItems[k].Rank, Success = AverageSuccess };
 
-                                            // Re-sort the list
-                                            SortedItems = SortedItems.OrderByDescending(x => x.Success).ThenBy(x => x.Rank).ToList();
-                                        }
-                                    }
+                                    //        // Re-sort the list
+                                    //        SortedItems = SortedItems.OrderByDescending(x => x.Success).ThenBy(x => x.Rank).ToList();
+                                    //    }
+                                    //}
 
                                     //No item has a 100% success rate, so we need to eliminate the item with the lowest success rate
                                     var BottomItem = SortedItems.Last();
                                     Eliminated.Add(BottomItem.Item);
+                                    OptimizeProgress++;
                                 }
                             }                            
                         }                        
@@ -924,7 +949,10 @@ namespace TournamentWizard.ViewModels
                         //Only one item remains, so just add it to the list
                         await Dispatcher.UIThread.InvokeAsync(() => OutputItems.Add((i + 1) + ". " + CurrentOutputs[0]));
                         CurrentOutputs.RemoveAt(0);
+
+                        OptimizeProgress++;
                     }                    
+                    
                 }
             });
 
@@ -932,6 +960,13 @@ namespace TournamentWizard.ViewModels
             ButtonsEnabled = true;
             OptimizeOpacity = 1;
             FadeOptimizeTimer.Start();
+
+            OptimizeTimer.Stop();
+            OptimizeTimer.Dispose();
+
+            //Restore the original Total Progress Bar values
+            TotalTotal = OriginalTotal;
+            TotalProgress = OriginalTotal;            
         }
 
         bool _buttonsEnabled = true;
