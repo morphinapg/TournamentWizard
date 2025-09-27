@@ -815,28 +815,6 @@ namespace TournamentWizard.ViewModels
 
         public async void Optimize_Sorting()
         {
-            //Temporarily store the original TotalToal value
-            var OriginalTotal = TotalTotal;
-
-            //Set Total Progress Bar values to work with the output items
-            TotalProgress = 0;
-            int count = OutputItems.Count;
-            TotalTotal = count * (count + 1) / 2;
-
-            int OptimizeProgress = 0; //Temporary variable to track progress
-
-
-            var OptimizeTimer = new Timer(1.0 / 120 * 1000);
-            OptimizeTimer.Elapsed += async (s, e) => await Dispatcher.UIThread.InvokeAsync(() =>
-            {
-                OptimizeTimer.Stop();
-                if (OptimizeProgress > TotalProgress) 
-                    TotalProgress = OptimizeProgress;
-
-                OptimizeTimer.Start();
-            });
-            OptimizeTimer.Start();
-
             //First, gather all of the output items without their numbers
             var CurrentOutputs = new List<string>();
 
@@ -854,119 +832,49 @@ namespace TournamentWizard.ViewModels
                 CurrentOutputs.Add(CurrentItem);
             }
 
-            OutputItems.Clear();
-            OnPropertyChanged(nameof(OptimizeVisible));
+            
+            //OnPropertyChanged(nameof(OptimizeVisible));
 
-            ButtonsEnabled = false;
+            //ButtonsEnabled = false;
 
             await Task.Run(async () =>
             {
-                bool match = false;
-                int CurrentCount = 0;
-                var Eliminated = new List<string>();
-
-                for (int i = 0; i < count; i++)
+                //Look through all remaining options and sort by chance of success
+                var SortedItems = CurrentOutputs.AsParallel().Select((x, i) =>
                 {
-                    CurrentCount = CurrentOutputs.Count;
-                    Eliminated.Clear();
-                    match = false;
+                    //Calculate the percentage of successes with this item in memory
+                    var matchups = Choices.Where(c => c.Key.Item1 == x && CurrentOutputs.Contains(c.Key.Item2)).Select(c => c.Value == x ? 1.0 : 0.0);
 
-                    if (CurrentCount > 1)
-                    {
-                        //Search for the next item to eliminate
-                        for (int j = 0; j < CurrentCount && !match; j++)
-                        {
-                            //Create a subset of items that do not include eliminated items
-                            var CurrentSet = CurrentOutputs.Except(Eliminated).ToList();
+                    var success = matchups.Any() ? matchups.Average() : 0.5; //If no matchups exist, use 0.5 to represent random chance, and use previous rank as a fallback 
+                    return new { Item = x, Rank = i, Success = success };
+                }).OrderByDescending(x => x.Success).ThenBy(x => x.Rank).ToList();
 
-                            if (CurrentSet.Count == 1)
-                            {
-                                match = true;
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    OutputItems.Clear();
 
-                                //Only one item remains, so just add it to the list
-                                await Dispatcher.UIThread.InvokeAsync(() => OutputItems.Add((i + 1) + ". " + CurrentSet[0]));
-                                CurrentOutputs.Remove(CurrentSet[0]);
+                    //Add the sorted items to the output list
+                    for (int i = 0; i < SortedItems.Count; i++)
+                        OutputItems.Add((i + 1) + ". " + SortedItems[i].Item);
 
-                                OptimizeProgress++;
-                            }
-                            else
-                            {
-                                //Look through all remaining options and sort by chance of success
-                                var SortedItems = CurrentSet.AsParallel().Select((x, i) =>
-                                {
-                                    //Calculate the percentage of successes with this item in memory
-                                    var matchups = Choices.Where(c => c.Key.Item1 == x && CurrentSet.Contains(c.Key.Item2)).Select(c => c.Value == x ? 1.0 : 0.0);
-
-                                    var success = matchups.Any() ? matchups.Average() : 0.5; //If no matchups exist, use 0.5 to represent random chance, and use previous rank as a fallback 
-                                    return new { Item = x, Rank = i, Success = success };
-                                }).OrderByDescending(x => x.Success).ThenBy(x => x.Rank).ToList();
-
-                                //Check if the top item has a 100% success rate
-                                var TopItem = SortedItems.First();
-                                if (TopItem.Success == 1.0)
-                                {
-                                    match = true;
-
-                                    //Add the winner to the new output list
-                                    await Dispatcher.UIThread.InvokeAsync(() => OutputItems.Add((i + 1) + ". " + TopItem.Item));
-
-                                    //Remove the winner from the current output list
-                                    CurrentOutputs.Remove(TopItem.Item);
-                                    OptimizeProgress += CurrentSet.Count; //All remaining items will be eliminated
-                                }
-                                else
-                                {
-                                    ////Check for 0.5 values and modify the score to reflect the average success rate in the subset
-                                    //if (SortedItems.Any(x => x.Success == 0.5))
-                                    //{
-                                    //    var SuccessItems = SortedItems.Where(x => x.Success != 0.5).ToList();
-
-                                    //    //Only modify if there are success items to average, and the minimum success rate is greater than 0.5
-                                    //    if (SuccessItems.Any() && SuccessItems.Min(x => x.Success) > 0.5)
-                                    //    {
-                                    //        //Calculate the average success rate of all items that are not 0.5
-                                    //        var AverageSuccess = SuccessItems.Average(x => x.Success);
-
-                                    //        for (int k = 0; k < SortedItems.Count; k++)
-                                    //            if (SortedItems[k].Success == 0.5)
-                                    //                SortedItems[k] = new { Item = SortedItems[k].Item, Rank = SortedItems[k].Rank, Success = AverageSuccess };
-
-                                    //        // Re-sort the list
-                                    //        SortedItems = SortedItems.OrderByDescending(x => x.Success).ThenBy(x => x.Rank).ToList();
-                                    //    }
-                                    //}
-
-                                    //No item has a 100% success rate, so we need to eliminate the item with the lowest success rate
-                                    var BottomItem = SortedItems.Last();
-                                    Eliminated.Add(BottomItem.Item);
-                                    OptimizeProgress++;
-                                }
-                            }                            
-                        }                        
-                    }
-                    else
-                    {
-                        //Only one item remains, so just add it to the list
-                        await Dispatcher.UIThread.InvokeAsync(() => OutputItems.Add((i + 1) + ". " + CurrentOutputs[0]));
-                        CurrentOutputs.RemoveAt(0);
-
-                        OptimizeProgress++;
-                    }                    
-                    
-                }
+                    OutputSelected = 0;
+                    OutputSelected = -1;
+                });    
             });
 
             //OnPropertyChanged(nameof(OptimizeVisible));
-            ButtonsEnabled = true;
+            //ButtonsEnabled = true;
             OptimizeOpacity = 1;
             FadeOptimizeTimer.Start();
 
-            OptimizeTimer.Stop();
-            OptimizeTimer.Dispose();
+            //OptimizeProgress = OriginalTotal;
 
-            //Restore the original Total Progress Bar values
-            TotalTotal = OriginalTotal;
-            TotalProgress = OriginalTotal;            
+            //OptimizeTimer.Stop();
+            //OptimizeTimer.Dispose();
+
+            ////Restore the original Total Progress Bar values
+            //TotalTotal = OriginalTotal;
+            //TotalProgress = OriginalTotal;            
         }
 
         bool _buttonsEnabled = true;
