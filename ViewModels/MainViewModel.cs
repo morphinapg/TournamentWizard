@@ -178,7 +178,7 @@ namespace TournamentWizard.ViewModels
 
                         GetPercentMatch();
 
-                        StartTournament();
+                        await StartTournament(true);
                     }
                 }
             }
@@ -213,15 +213,17 @@ namespace TournamentWizard.ViewModels
 
         public bool OptimizeVisible => OutputItems.Count > 0 && InputItems.Count == 0;
 
-        void StartTournament()
+        async Task StartTournament(bool first = false)
         {
 
             Tiers.Add(new Tier(InputItems.ToList()));
 
             TierIndex = Tiers.Count - 1;
 
-            GetTotal();
-            GetNext();
+            await GetTotal();
+
+            if (first)
+                GetNext();
         }
 
         [DataMember]
@@ -328,11 +330,13 @@ namespace TournamentWizard.ViewModels
                     bool FoundNext = false;
 
                     string? choice1 = null, choice2 = null;
+                    int currentprogress = CurrentProgress, totalprogress = TotalProgress;
 
                     while (!FoundNext)
                     {
                         choice1 = null;
                         choice2 = null;
+                        
                         var NextItems = CurrentTier.GetNext();
                         CurrentTier.CurrentPosition += 2;
                         if (NextItems.Length == 2)
@@ -345,8 +349,8 @@ namespace TournamentWizard.ViewModels
                                 if (!ReplacementMode)
                                 {
                                     CurrentTier.Outputs.Add(Choices[(choice1, choice2)]);
-                                    CurrentProgress++;
-                                    TotalProgress++;
+                                    currentprogress++;
+                                    totalprogress++;
                                 }
                                 //GetNext();
                             }
@@ -359,15 +363,18 @@ namespace TournamentWizard.ViewModels
                             choice2 = null;
 
                             CurrentTier.Outputs.Add(CurrentTier.Inputs.Last());
-                            TotalProgress++;
+                            currentprogress++;
+                            totalprogress++;
 
-                            FoundNext = true;
-                            GetNextTier();
+                            FoundNext = await GetNextTier();
+                            if (CurrentProgress == 0)
+                                currentprogress = 0;
                         }
                         else if (!ReplacementMode)
                         {
-                            FoundNext = true;
-                            GetNextTier();
+                            FoundNext = await GetNextTier();
+                            if (CurrentProgress == 0)
+                                currentprogress = 0;
                         }
                         else
                         {
@@ -381,12 +388,14 @@ namespace TournamentWizard.ViewModels
 
                     await Dispatcher.UIThread.InvokeAsync(() =>
                     {
+                        CurrentProgress = currentprogress;
+                        TotalProgress = totalprogress;
                         Choice1 = choice1;
                         Choice2 = choice2;
-                    });
 
-                    if (ReplacementMode)
-                        await Dispatcher.UIThread.InvokeAsync(() => OnPropertyChanged(nameof(ReplacementString)));
+                        if (ReplacementMode)
+                            OnPropertyChanged(nameof(ReplacementString));
+                    });
                 });                
             }           
         }
@@ -402,7 +411,7 @@ namespace TournamentWizard.ViewModels
             }
         }
 
-        async void GetNextTier()
+        async Task<bool> GetNextTier()
         {
             if (CurrentTier is not null)
             {
@@ -411,7 +420,7 @@ namespace TournamentWizard.ViewModels
                     Tiers.Add(new Tier(CurrentTier.Outputs));
                     TierIndex = Tiers.Count - 1;
 
-                    GetNext();
+                    return false;
                 }
                 else
                 {
@@ -429,30 +438,40 @@ namespace TournamentWizard.ViewModels
                         OutputSelected = PreviouslySelected;
 
                         InputItems.Remove(item);
+
+                        OnPropertyChanged(nameof(OptimizeVisible));
+                        OnPropertyChanged(nameof(OutputCopyVisible));
+                        OnPropertyChanged(nameof(CopyVisible));
                     });
                     
                     GetPercentMatch();
 
                     if (InputItems.Count > 0)
-                        StartTournament();
+                    {
+                        await StartTournament();
+                        return false;
+                    }                                         
 
-                    OnPropertyChanged(nameof(OptimizeVisible));
-                    OnPropertyChanged(nameof(OutputCopyVisible));
-                    OnPropertyChanged(nameof(CopyVisible));
+                    return true;
                 }
             }
+
+            return false;
         }
 
-        void GetTotal()
+        async Task GetTotal()
         {
-            CurrentTotal = GetTotalForInputs(InputItems.Count);
-            CurrentProgress = 0;
-
-            if (OutputItems.Count == 0)
+            await Dispatcher.UIThread.InvokeAsync(() =>
             {
-                TotalTotal = Enumerable.Range(1, InputItems.Count).Select(x => GetTotalForInputs(x)).Sum();
-                TotalProgress = 0;
-            }
+                CurrentTotal = GetTotalForInputs(InputItems.Count);
+                CurrentProgress = 0;
+
+                if (OutputItems.Count == 0)
+                {
+                    TotalTotal = Enumerable.Range(1, InputItems.Count).Select(x => GetTotalForInputs(x)).Sum();
+                    TotalProgress = 0;
+                }
+            });            
         }
 
         int GetTotalForInputs(int inputs)
@@ -765,12 +784,15 @@ namespace TournamentWizard.ViewModels
             }
         }
 
-        public void DeselectItem()
+        public async void DeselectItem()
         {
-            SelectedItem = null;
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                SelectedItem = null;
 
-            if (Flyout is not null)
-                Flyout.Hide();
+                if (Flyout is not null)
+                    Flyout.Hide();
+            });            
         }
 
         public CommandHandler Delete_Click => new CommandHandler(DeleteItem);
