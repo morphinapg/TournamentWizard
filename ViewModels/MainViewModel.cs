@@ -318,53 +318,77 @@ namespace TournamentWizard.ViewModels
             "Completed " + (ReplacementTier.CurrentPosition / 2) + " / " + (ReplacementTier.NumberOfChoices) + " choices."
             : null;
 
-        void GetNext()
+        async void GetNext()
         {
+            
             if (CurrentTier is not null)
             {
-                if (ReplacementMode)
-                    OnPropertyChanged(nameof(ReplacementString));
-                var NextItems = CurrentTier.GetNext();
-                CurrentTier.CurrentPosition += 2;
-                if (NextItems.Length == 2)
+                await Task.Run(async () =>
                 {
-                    Choice1 = NextItems[0];
-                    Choice2 = NextItems[1];
+                    bool FoundNext = false;
 
-                    if (Choices.ContainsKey((Choice1, Choice2)))
+                    string? choice1 = null, choice2 = null;
+
+                    while (!FoundNext)
                     {
-                        if (!ReplacementMode)
+                        choice1 = null;
+                        choice2 = null;
+                        var NextItems = CurrentTier.GetNext();
+                        CurrentTier.CurrentPosition += 2;
+                        if (NextItems.Length == 2)
                         {
-                            CurrentTier.Outputs.Add(Choices[(Choice1, Choice2)]);
-                            CurrentProgress++;
+                            choice1 = NextItems[0];
+                            choice2 = NextItems[1];
+
+                            if (Choices.ContainsKey((choice1, choice2)))
+                            {
+                                if (!ReplacementMode)
+                                {
+                                    CurrentTier.Outputs.Add(Choices[(choice1, choice2)]);
+                                    CurrentProgress++;
+                                    TotalProgress++;
+                                }
+                                //GetNext();
+                            }
+                            else
+                                FoundNext = true;
+                        }
+                        else if (NextItems.Length == 1 && !ReplacementMode)
+                        {
+                            choice1 = null;
+                            choice2 = null;
+
+                            CurrentTier.Outputs.Add(CurrentTier.Inputs.Last());
                             TotalProgress++;
-                        }                            
-                        GetNext();
+
+                            FoundNext = true;
+                            GetNextTier();
+                        }
+                        else if (!ReplacementMode)
+                        {
+                            FoundNext = true;
+                            GetNextTier();
+                        }
+                        else
+                        {
+                            ReplacementMode = false;
+                            ReplacementTier = null;
+                            ReplacementItem = null;
+                            DeselectItem();
+                            //GetNext();
+                        }
                     }
-                }
-                else if (NextItems.Length == 1 && !ReplacementMode)
-                {
-                    Choice1 = null;
-                    Choice2 = null;
 
-                    CurrentTier.Outputs.Add(CurrentTier.Inputs.Last());
-                    TotalProgress++;
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        Choice1 = choice1;
+                        Choice2 = choice2;
+                    });
 
-                    GetNextTier();
-                }
-                else if (!ReplacementMode)
-                {
-                    GetNextTier();
-                }
-                else
-                {
-                    ReplacementMode = false;
-                    ReplacementTier = null;
-                    ReplacementItem = null;
-                    DeselectItem();
-                    GetNext();
-                }
-            }
+                    if (ReplacementMode)
+                        await Dispatcher.UIThread.InvokeAsync(() => OnPropertyChanged(nameof(ReplacementString)));
+                });                
+            }           
         }
 
         int _outputSelected = -1;
@@ -378,7 +402,7 @@ namespace TournamentWizard.ViewModels
             }
         }
 
-        void GetNextTier()
+        async void GetNextTier()
         {
             if (CurrentTier is not null)
             {
@@ -393,16 +417,20 @@ namespace TournamentWizard.ViewModels
                 {
                     var item = CurrentTier.Outputs.First();
 
-                    var number = OutputItems.Count + 1;
-                    OutputItems.Add(number + ". " + item);
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        var number = OutputItems.Count + 1;
+                        OutputItems.Add(number + ". " + item);
 
-                    //Scroll to include the new items into view
-                    //then select the original item again
-                    var PreviouslySelected = OutputSelected;
-                    OutputSelected = OutputItems.Count - 1;
-                    OutputSelected = PreviouslySelected;
+                        //Scroll to include the new items into view
+                        //then select the original item again
+                        var PreviouslySelected = OutputSelected;
+                        OutputSelected = OutputItems.Count - 1;
+                        OutputSelected = PreviouslySelected;
 
-                    InputItems.Remove(item);
+                        InputItems.Remove(item);
+                    });
+                    
                     GetPercentMatch();
 
                     if (InputItems.Count > 0)
