@@ -25,6 +25,13 @@ namespace TournamentWizard.ViewModels
                 inputs.Select(x => new {index = r.NextDouble(), item = x}).OrderBy(x => x.index).Select(x => x.item).Distinct().ToList();
         }
 
+        public Tier(Tier other)
+        {
+            Inputs = new List<string>(other.Inputs.ToList());
+            Outputs = new List<string>(other.Outputs.ToList());
+            CurrentPosition = other.CurrentPosition;
+        }
+
         public string[] GetNext()
         {          
             if (Inputs.Count > CurrentPosition + 1)

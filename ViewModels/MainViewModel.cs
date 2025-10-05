@@ -494,7 +494,7 @@ namespace TournamentWizard.ViewModels
         {
             if (CurrentTier is not null && Choice1 is not null && Choice2 is not null)
             {
-                Undo.Push(new UndoState(TierIndex, CurrentTier.CurrentPosition, Choice1, Choice2, Choice1, CurrentTotal, TotalTotal, CurrentProgress, TotalProgress, new ObservableCollection<string>(InputItems), new ObservableCollection<string>(OutputItems), CurrentTier.Outputs.ToList(), ReplacementMode, ReplacementItem, ReplacementTier));
+                Undo.Push(new UndoState(TierIndex, CurrentTier.CurrentPosition, Choice1, Choice2, Choice1, CurrentTotal, TotalTotal, CurrentProgress, TotalProgress, new ObservableCollection<string>(InputItems), new ObservableCollection<string>(OutputItems), CurrentTier.Outputs.ToList(), ReplacementMode, ReplacementItem, ReplacementTier is null ? null : new Tier(ReplacementTier)));
 
                 if (!ReplacementMode)
                 {
@@ -524,7 +524,7 @@ namespace TournamentWizard.ViewModels
         {
             if (CurrentTier is not null && Choice1 is not null && Choice2 is not null)
             {
-                Undo.Push(new UndoState(TierIndex, CurrentTier.CurrentPosition, Choice1, Choice2, Choice2, CurrentTotal, TotalTotal, CurrentProgress, TotalProgress, new ObservableCollection<string>(InputItems), new ObservableCollection<string>(OutputItems), CurrentTier.Outputs.ToList(), ReplacementMode, ReplacementItem, ReplacementTier));
+                Undo.Push(new UndoState(TierIndex, CurrentTier.CurrentPosition, Choice1, Choice2, Choice2, CurrentTotal, TotalTotal, CurrentProgress, TotalProgress, new ObservableCollection<string>(InputItems), new ObservableCollection<string>(OutputItems), CurrentTier.Outputs.ToList(), ReplacementMode, ReplacementItem, ReplacementTier is null ? null : new Tier(ReplacementTier)));
 
                 if (!ReplacementMode)
                 {
@@ -733,7 +733,7 @@ namespace TournamentWizard.ViewModels
                 {
                     bool
                         TierValid = Tiers.Count > UndoState.TierIndex,
-                        PositionValid = Tiers[UndoState.TierIndex].Inputs.Count > UndoState.CurrentPosition - 2;
+                        PositionValid = UndoState.ReplacementMode && UndoState.ReplacementTier is not null ? UndoState.ReplacementTier.Inputs.Count > UndoState.CurrentPosition - 2 : Tiers[UndoState.TierIndex].Inputs.Count > UndoState.CurrentPosition - 2;
 
                     if (TierValid && PositionValid)
                     {
@@ -834,7 +834,7 @@ namespace TournamentWizard.ViewModels
 
         void GetPercentMatch()
         {
-            Task.Run(async () =>
+            Task.Run(() =>
             {
                 int total = 0, match = 0;
 
@@ -849,14 +849,14 @@ namespace TournamentWizard.ViewModels
                 }
 
                 if (total == 0)
-                    await Dispatcher.UIThread.InvokeAsync(() => PercentMatch = null);
+                    Dispatcher.UIThread.Post(() => PercentMatch = null);
 
                 var percent = (double)match / total;
 
                 if (total == 0)
-                    await Dispatcher.UIThread.InvokeAsync(() => PercentMatch = "(0 left)");
+                    Dispatcher.UIThread.Post(() => PercentMatch = "(0 left)");
                 else
-                    await Dispatcher.UIThread.InvokeAsync(() => PercentMatch = " (" + percent.ToString("P2") + " of possible choices matched - " + (total - match).ToString("N0") + " left)");
+                    Dispatcher.UIThread.Post(() => PercentMatch = " (" + percent.ToString("P2") + " of possible choices matched - " + (total - match).ToString("N0") + " left)");
             });            
         }
 
