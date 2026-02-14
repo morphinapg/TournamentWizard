@@ -171,6 +171,8 @@ namespace TournamentWizard.ViewModels
                     AutoSaveTimer.Stop();
                     if (File.Exists(AutoSavePath))
                         File.Delete(AutoSavePath);
+
+                    AutoSaveOpacity = 0;
                 }
                     
             }
@@ -181,6 +183,17 @@ namespace TournamentWizard.ViewModels
         Timer AutoSaveTimer = new Timer(1000);
 
         string? AutoSavePath;
+
+        double _autoSaveOpacity = 0;
+        public double AutoSaveOpacity
+        {
+            get => _autoSaveOpacity;
+            set
+            {
+                _autoSaveOpacity = value;
+                OnPropertyChanged(nameof(AutoSaveOpacity));
+            }
+        }
 
         async void PasteItems()
         {
@@ -1104,7 +1117,11 @@ namespace TournamentWizard.ViewModels
                     await WriteObjectAsync<MainViewModel>(AutoSavePath, this);
 
                     LastSavedCount = OutputItems.Count;
+
+                    AutoSaveOpacity = 1;
                 }
+                else
+                    AutoSaveOpacity = 0;
             };
 
             if (AutoSave)

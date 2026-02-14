@@ -3,8 +3,9 @@
         xmlns:vm="using:TournamentWizard.ViewModels"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="1024" d:DesignHeight="768"
-        Width="1024" Height="768" WindowStartupLocation="CenterScreen"
+        xmlns:ui="using:FluentAvalonia.UI.Controls"
+        mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="768"
+        Width="1280" Height="768" WindowStartupLocation="CenterScreen"
         x:Class="TournamentWizard.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Icon="/Assets/icon.ico"
@@ -55,7 +56,11 @@
     <Grid ColumnDefinitions="Auto,*,Auto" Grid.Column="1" IsEnabled="{Binding ButtonsEnabled}">
       <Button Content="Paste Items" Command="{Binding Paste_Items}"/>
 
-      <CheckBox Content="Auto Save" Grid.Column="1" HorizontalAlignment="Center" IsChecked="{Binding AutoSave}" Focusable="False"/>
+        <StackPanel Orientation="Horizontal" Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center">
+			<CheckBox Content="Auto Save" Grid.Column="1" HorizontalAlignment="Center" IsChecked="{Binding AutoSave}" Focusable="False"/>
+            <ui:ProgressRing IsIndeterminate="True" BorderThickness="5" Width="25" Height="25" HorizontalAlignment="Center" Margin="15" Opacity="{Binding AutoSaveOpacity}"/>
+        </StackPanel>
+      
 
       <StackPanel Orientation="Horizontal" Grid.Column="2">
         <Button Content="Load State" Command="{Binding Load_State}"/>
