@@ -1,6 +1,7 @@
 ﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Controls.Shapes;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using MsBox.Avalonia;
@@ -153,6 +154,33 @@ namespace TournamentWizard.ViewModels
         public double ProgressOpacity => TotalTotal > 0 ? 1 : 0;
 
         public int StoredChoices => Choices.Count / 2;
+
+        bool _autoSave = true;
+        public bool AutoSave
+        {
+            get => _autoSave;
+            set
+            {
+                _autoSave = value;
+                OnPropertyChanged(nameof(AutoSave));
+
+                if (value)
+                    AutoSaveTimer.Start();
+                else
+                {
+                    AutoSaveTimer.Stop();
+                    if (File.Exists(AutoSavePath))
+                        File.Delete(AutoSavePath);
+                }
+                    
+            }
+        }
+
+        int? LastSavedCount;
+
+        Timer AutoSaveTimer = new Timer(1000);
+
+        string? AutoSavePath;
 
         async void PasteItems()
         {
@@ -608,69 +636,15 @@ namespace TournamentWizard.ViewModels
 
                     if (Files.Any())
                     {
-                        var File = Files.First().Path;
+                        var file = Files.First().Path;
 
-                        var Data = await ReadObjectAsync<MainViewModel>(File.LocalPath);
+                        await LoadDataFromPathAsync(file.LocalPath);
 
-                        if (Data is not null)
-                        {
-                            if (Data.InputItems is not null)
-                                InputItems = Data.InputItems;
-                            else
-                                InputItems.Clear();
+                        //Reset AutoSave since we just loaded a file
+                        if (File.Exists(AutoSavePath))
+                            File.Delete(AutoSavePath);
 
-                            if (Data.OutputItems is not null)
-                                OutputItems = Data.OutputItems;
-                            else
-                                OutputItems.Clear();
-
-                            OutputSelected = OutputItems.Count - 1;
-
-                            if (Data.Choices is not null)
-                                Choices = Data.Choices;
-                            else
-                                Choices.Clear();
-
-                                                     
-
-                            OnPropertyChanged(nameof(StoredChoices));
-                            
-
-                            Tiers.Clear();
-
-                            if (Data.Tiers is not null)
-                            {
-                                var LastItem = Data.Tiers.Last();
-                                Tiers.Add(LastItem);
-                            }
-
-                            CurrentTotal = Data.CurrentTotal;
-
-                            TotalTotal = Data.TotalTotal;
-
-                            CurrentProgress = Data.CurrentProgress;
-
-                            TotalProgress = Data.TotalProgress;
-
-                            Choice1 = Data.Choice1;
-                            Choice2 = Data.Choice2;
-
-                            TierIndex = 0;                            
-
-                            GetPercentMatch();
-
-                            ReplacementMode = Data.ReplacementMode;
-                            ReplacementTier = Data.ReplacementTier;    
-                            ReplacementItem = Data.ReplacementItem;
-
-                            if (ReplacementMode && ReplacementTier is not null)
-                            {
-                                ReplacementTier.CurrentPosition -= 2;
-                                OnPropertyChanged(nameof(ReplacementString));
-                                ReplacementTier.CurrentPosition += 2;
-                            }
-                                
-                        }
+                        LastSavedCount = OutputItems.Count;
                     }
                 }
             }
@@ -679,6 +653,67 @@ namespace TournamentWizard.ViewModels
                 var msg = MessageBoxManager.GetMessageBoxStandard("Error", "Error loading data: \r\n\r\n" + ex.Message);
 
                 await msg.ShowAsync();
+            }
+        }
+
+        async Task LoadDataFromPathAsync(string path)
+        {
+            var Data = await ReadObjectAsync<MainViewModel>(path);
+
+            if (Data is not null)
+            {
+                if (Data.InputItems is not null)
+                    InputItems = Data.InputItems;
+                else
+                    InputItems.Clear();
+
+                if (Data.OutputItems is not null)
+                    OutputItems = Data.OutputItems;
+                else
+                    OutputItems.Clear();
+
+                OutputSelected = OutputItems.Count - 1;
+
+                if (Data.Choices is not null)
+                    Choices = Data.Choices;
+                else
+                    Choices.Clear();
+
+                OnPropertyChanged(nameof(StoredChoices));
+
+                Tiers.Clear();
+
+                if (Data.Tiers is not null)
+                {
+                    var LastItem = Data.Tiers.Last();
+                    Tiers.Add(LastItem);
+                }
+
+                CurrentTotal = Data.CurrentTotal;
+
+                TotalTotal = Data.TotalTotal;
+
+                CurrentProgress = Data.CurrentProgress;
+
+                TotalProgress = Data.TotalProgress;
+
+                Choice1 = Data.Choice1;
+                Choice2 = Data.Choice2;
+
+                TierIndex = 0;
+
+                GetPercentMatch();
+
+                ReplacementMode = Data.ReplacementMode;
+                ReplacementTier = Data.ReplacementTier;
+                ReplacementItem = Data.ReplacementItem;
+
+                if (ReplacementMode && ReplacementTier is not null)
+                {
+                    ReplacementTier.CurrentPosition -= 2;
+                    OnPropertyChanged(nameof(ReplacementString));
+                    ReplacementTier.CurrentPosition += 2;
+                }                
             }
         }
 
@@ -733,7 +768,7 @@ namespace TournamentWizard.ViewModels
                 {
                     bool
                         TierValid = Tiers.Count > UndoState.TierIndex,
-                        PositionValid = UndoState.ReplacementMode && UndoState.ReplacementTier is not null ? UndoState.ReplacementTier.Inputs.Count > UndoState.CurrentPosition - 2 : Tiers[UndoState.TierIndex].Inputs.Count > UndoState.CurrentPosition - 2;
+                        PositionValid = UndoState.ReplacementMode && UndoState.ReplacementTier is not null ? UndoState.ReplacementTier.Inputs.Count > UndoState.ReplacementTier.CurrentPosition - 2 : Tiers[UndoState.TierIndex].Inputs.Count > UndoState.CurrentPosition - 2;
 
                     if (TierValid && PositionValid)
                     {
@@ -771,6 +806,10 @@ namespace TournamentWizard.ViewModels
                             OnPropertyChanged(nameof(ReplacementString));
                             ReplacementTier.CurrentPosition += 2;
                         }
+
+                        //Since we just undid an action, the previous save point may no longer be accurate, so we reset it to null to force a new save at the next opportunity
+                        if (LastSavedCount.HasValue)
+                            LastSavedCount = null;
                     }
                     else
                     {
@@ -1035,6 +1074,41 @@ namespace TournamentWizard.ViewModels
                 if (OptimizeOpacity == 0)
                     FadeOptimizeTimer.Stop();
             };
+
+            //AUTO SAVE SETUP
+
+            //Define the autosave folder path
+            var folder = System.IO.Path.Combine( Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),"TournamentWizard");
+
+            //Create the folder if it doesn't exist
+            Directory.CreateDirectory(folder);
+
+            //Set AutoSave path
+            AutoSavePath = System.IO.Path.Combine(folder, "autosave.xml");
+
+            //Check if an autosave file exists, and if so, load it
+            if (File.Exists(AutoSavePath))
+            {
+                Task.Run(async () => await LoadDataFromPathAsync(AutoSavePath));
+            }
+
+            //Set up a timer to check if autosaving is necessary, every 1 second
+            AutoSaveTimer.Elapsed += async (s, e) =>
+            {
+                bool SaveNeeded = LastSavedCount.HasValue ?
+                    (int)(OutputItems.Count / 5) > (int)(LastSavedCount.Value / 5) : //Save every 5 new items
+                    OutputItems.Count >= 5; //If LastSavedCount is null, save when there are at least 5 items
+
+                if (SaveNeeded)
+                {
+                    await WriteObjectAsync<MainViewModel>(AutoSavePath, this);
+
+                    LastSavedCount = OutputItems.Count;
+                }
+            };
+
+            if (AutoSave)
+                AutoSaveTimer.Start();
         }
 
         double _optimizeOpacity = 0;
@@ -1157,5 +1231,7 @@ namespace TournamentWizard.ViewModels
                 });
             }
         });
+
+
     }
 }

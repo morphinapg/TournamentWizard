@@ -59,14 +59,14 @@ namespace TournamentWizard.Views
                     model.Choose1();
                 else if (e.Key == Key.Right)
                     model.Choose2();
-                else if (e.Key == Key.Up)
-                    model.Choose1();
-                else if (e.Key == Key.Down)
-                    model.Choose2();
-                else if (e.Key == Key.NumPad1 || e.Key == Key.D1)
-                    model.Choose1();
-                else if (e.Key == Key.NumPad2 || e.Key == Key.D2)
-                    model.Choose2();
+                //else if (e.Key == Key.Up)
+                //    model.Choose1();
+                //else if (e.Key == Key.Down)
+                //    model.Choose2();
+                //else if (e.Key == Key.NumPad1 || e.Key == Key.D1)
+                //    model.Choose1();
+                //else if (e.Key == Key.NumPad2 || e.Key == Key.D2)
+                //    model.Choose2();
                 else
                     base.OnKeyUp(e);
 

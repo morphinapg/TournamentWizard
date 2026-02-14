@@ -52,10 +52,12 @@
       </ListBox>
     </Grid>
 
-    <Grid ColumnDefinitions="Auto,*" Grid.Column="1" IsEnabled="{Binding ButtonsEnabled}">
+    <Grid ColumnDefinitions="Auto,*,Auto" Grid.Column="1" IsEnabled="{Binding ButtonsEnabled}">
       <Button Content="Paste Items" Command="{Binding Paste_Items}"/>
 
-      <StackPanel Orientation="Horizontal" Grid.Column="1" HorizontalAlignment="Right">
+      <CheckBox Content="Auto Save" Grid.Column="1" HorizontalAlignment="Center" IsChecked="{Binding AutoSave}" Focusable="False"/>
+
+      <StackPanel Orientation="Horizontal" Grid.Column="2">
         <Button Content="Load State" Command="{Binding Load_State}"/>
         <Button Content="Save State" Command="{Binding Save_State}"/>
       </StackPanel>
