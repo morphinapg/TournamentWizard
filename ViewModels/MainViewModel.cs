@@ -221,6 +221,13 @@ namespace TournamentWizard.ViewModels
 
                         await StartTournament(true);
                     }
+
+                    //Reset the AutoSave since the current save will no longer be relevant after pasting new items
+                    if (LastSavedCount.HasValue)
+                        LastSavedCount = null;
+
+                    if (File.Exists(AutoSavePath))
+                        File.Delete(AutoSavePath);
                 }
             }
         }
@@ -976,7 +983,12 @@ namespace TournamentWizard.ViewModels
 
             ////Restore the original Total Progress Bar values
             //TotalTotal = OriginalTotal;
-            //TotalProgress = OriginalTotal;            
+            //TotalProgress = OriginalTotal;
+            //
+
+            //Reset the AutoSave since the current save may no longer be accurate after optimizing, so we force a new save at the next opportunity
+                if (LastSavedCount.HasValue)
+                    LastSavedCount = null;
         }
 
         bool _buttonsEnabled = true;
