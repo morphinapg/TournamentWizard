@@ -169,8 +169,17 @@ namespace TournamentWizard.ViewModels
                 else
                 {
                     AutoSaveTimer.Stop();
-                    if (File.Exists(AutoSavePath))
-                        File.Delete(AutoSavePath);
+
+                    try
+                    {
+                        if (File.Exists(AutoSavePath))
+                            File.Delete(AutoSavePath);
+                    }
+                    catch
+                    {
+                        //Ignore any errors that occur while deleting the file, since it's not critical if the file fails to delete for some reason
+                    }
+
 
                     AutoSaveOpacity = 0;
                 }
@@ -226,8 +235,15 @@ namespace TournamentWizard.ViewModels
                     if (LastSavedCount.HasValue)
                         LastSavedCount = null;
 
-                    if (File.Exists(AutoSavePath))
-                        File.Delete(AutoSavePath);
+                    try
+                    {
+                        if (File.Exists(AutoSavePath))
+                            File.Delete(AutoSavePath);
+                    }
+                    catch
+                    {
+                        //Ignore any errors that occur while deleting the file, since it's not critical if the file fails to delete for some reason
+                    }
                 }
             }
         }
@@ -661,8 +677,16 @@ namespace TournamentWizard.ViewModels
                         await LoadDataFromPathAsync(file.LocalPath);
 
                         //Reset AutoSave since we just loaded a file
-                        if (File.Exists(AutoSavePath))
-                            File.Delete(AutoSavePath);
+                        try
+                        {
+                            if (File.Exists(AutoSavePath))
+                                File.Delete(AutoSavePath);
+                        }
+                        catch
+                        {
+                            //Ignore any errors that occur while deleting the file, since it's not critical if the file fails to delete for some reason
+                        }
+
 
                         LastSavedCount = OutputItems.Count;
                     }
@@ -768,8 +792,15 @@ namespace TournamentWizard.ViewModels
 
                             if (LastSavedCount.HasValue && OutputItems.Count > LastSavedCount)
                             {
-                                if (File.Exists(AutoSavePath))
-                                    File.Delete(AutoSavePath);
+                                try
+                                {
+                                    if (File.Exists(AutoSavePath))
+                                        File.Delete(AutoSavePath);
+                                }
+                                catch
+                                {
+                                    //Ignore any errors that occur while deleting the file, since it's not critical if the file fails to delete for some reason
+                                }
 
                                 LastSavedCount = OutputItems.Count;
                             }
@@ -998,8 +1029,15 @@ namespace TournamentWizard.ViewModels
             //
 
             //Reset the AutoSave since the current save may no longer be accurate after optimizing, so we force a new save at the next opportunity
-            if (File.Exists(AutoSavePath))
-                File.Delete(AutoSavePath);
+            try
+            {
+                if (File.Exists(AutoSavePath))
+                    File.Delete(AutoSavePath);
+            }
+            catch
+            {
+                //Ignore any errors that occur while deleting the file, since it's not critical if the file fails to delete for some reason
+            }
 
             if (LastSavedCount.HasValue)
                 LastSavedCount = null;
