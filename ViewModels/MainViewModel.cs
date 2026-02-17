@@ -763,6 +763,17 @@ namespace TournamentWizard.ViewModels
                         if (path is not null)
                         {
                             await WriteObjectAsync<MainViewModel>(path, this);
+
+                            //Reset AutoSave if OutputItems has increased since we last autosaved
+
+                            if (LastSavedCount.HasValue && OutputItems.Count > LastSavedCount)
+                            {
+                                if (File.Exists(AutoSavePath))
+                                    File.Delete(AutoSavePath);
+
+                                LastSavedCount = OutputItems.Count;
+                            }
+                            
                         }
                     }
                 }
@@ -1126,11 +1137,18 @@ namespace TournamentWizard.ViewModels
 
                 if (SaveNeeded)
                 {
-                    await WriteObjectAsync<MainViewModel>(AutoSavePath, this);
-
-                    LastSavedCount = OutputItems.Count;
-
                     AutoSaveOpacity = 1;
+
+                    try
+                    {
+                        await WriteObjectAsync<MainViewModel>(AutoSavePath, this);
+
+                        LastSavedCount = OutputItems.Count;
+                    }
+                    catch
+                    {
+                        //If saving fails, we don't want the app to crash, so we just ignore the error and try again at the next save point
+                    }
                 }
                 else
                     AutoSaveOpacity = 0;
