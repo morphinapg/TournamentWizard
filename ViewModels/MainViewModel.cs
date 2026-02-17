@@ -998,8 +998,11 @@ namespace TournamentWizard.ViewModels
             //
 
             //Reset the AutoSave since the current save may no longer be accurate after optimizing, so we force a new save at the next opportunity
-                if (LastSavedCount.HasValue)
-                    LastSavedCount = null;
+            if (File.Exists(AutoSavePath))
+                File.Delete(AutoSavePath);
+
+            if (LastSavedCount.HasValue)
+                LastSavedCount = null;
         }
 
         bool _buttonsEnabled = true;
@@ -1131,9 +1134,9 @@ namespace TournamentWizard.ViewModels
             //Set up a timer to check if autosaving is necessary, every 1 second
             AutoSaveTimer.Elapsed += async (s, e) =>
             {
-                bool SaveNeeded = LastSavedCount.HasValue ?
+                bool SaveNeeded = (InputItems.Count == 0 && OutputItems.Count > 0) || (LastSavedCount.HasValue ?
                     (int)(OutputItems.Count / 5) > (int)(LastSavedCount.Value / 5) : //Save every 5 new items
-                    OutputItems.Count >= 5; //If LastSavedCount is null, save when there are at least 5 items
+                    OutputItems.Count >= 5); //If LastSavedCount is null, save when there are at least 5 items
 
                 if (SaveNeeded)
                 {
