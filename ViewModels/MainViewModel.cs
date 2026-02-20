@@ -325,7 +325,7 @@ namespace TournamentWizard.ViewModels
             {
                 //First find all matching choices
                 var MatchingChoices = Choices.Where(x => x.Key.Item1 == SelectedItem || x.Key.Item2 == SelectedItem).ToList();
-                var Matching = MatchingChoices.Count() / 2;
+                var Matching = MatchingChoices.Count();// / 2;
 
                 //Ask the user whether they are sure they want to replace the choices
                 var result = await MessageBoxManager.GetMessageBoxStandard("Are you sure?", "Are you sure you want to replace all choices for '" + SelectedItem + "'?\r\n\r\n" + Matching + " choices will be replaced!", MsBox.Avalonia.Enums.ButtonEnum.YesNo, MsBox.Avalonia.Enums.Icon.Warning).ShowAsync();
@@ -335,7 +335,7 @@ namespace TournamentWizard.ViewModels
                     //If the user is sure, we can start the replacement process
                     //The idea is to replace all existing choices from one specific item with new choices
                     //First, we need to get a list of all choices that match the chosen item
-                    var ChoicesToReplace = MatchingChoices.Where(x => x.Key.Item1 == SelectedItem).Select(x => x.Key.Item2).Distinct().ToList();
+                    var ChoicesToReplace = MatchingChoices.Select(x => x.Key.Item1 == SelectedItem ? x.Key.Item2 : x.Key.Item1).Distinct().ToList();
 
                     //Choice order will be randomized so that it doesn't influence user choice
                     var r = Random.Shared;
@@ -954,8 +954,8 @@ namespace TournamentWizard.ViewModels
                     foreach (var item2 in InputItems.Where(x => x.CompareTo(item1) > 0))
                     {
                         total++;
-                        var key = string.Compare(item1, item2) < 0 ? (item1, item2) : (item2, item1);
-                        if (Choices.ContainsKey(key))
+                        //var key = string.Compare(item1, item2) < 0 ? (item1, item2) : (item2, item1);
+                        if (Choices.ContainsKey((item1, item2)))
                             match++;
                     }
                 }
@@ -1290,7 +1290,9 @@ namespace TournamentWizard.ViewModels
                     if (value == OldName) 
                         value = NewName;
 
-                    Choices[(item1, item2)] = value;                    
+                    var key = string.Compare(item1, item2) < 0 ? (item1, item2) : (item2, item1);
+
+                    Choices[key] = value;                    
                 }
 
                 foreach (var tier in Tiers)
