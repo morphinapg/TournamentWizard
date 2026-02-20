@@ -153,7 +153,7 @@ namespace TournamentWizard.ViewModels
 
         public double ProgressOpacity => TotalTotal > 0 ? 1 : 0;
 
-        public int StoredChoices => Choices.Count / 2;
+        public int StoredChoices => Choices.Count;
 
         bool _autoSave = true;
         public bool AutoSave
@@ -371,7 +371,6 @@ namespace TournamentWizard.ViewModels
                     foreach (var item in MatchingChoices)
                     {
                         Choices.Remove(item.Key);
-                        Choices.Remove((item.Key.Item2, item.Key.Item1));
                     }
 
                     GetNext();
@@ -408,11 +407,13 @@ namespace TournamentWizard.ViewModels
                             choice1 = NextItems[0];
                             choice2 = NextItems[1];
 
-                            if (Choices.ContainsKey((choice1, choice2)))
+                            var key = string.Compare(choice1, choice2) < 0 ? (choice1, choice2) : (choice2, choice1);
+
+                            if (Choices.ContainsKey(key))
                             {
                                 if (!ReplacementMode)
                                 {
-                                    CurrentTier.Outputs.Add(Choices[(choice1, choice2)]);
+                                    CurrentTier.Outputs.Add(Choices[key]);
                                     currentprogress++;
                                     totalprogress++;
                                 }
@@ -566,9 +567,10 @@ namespace TournamentWizard.ViewModels
                     CurrentProgress++;
                     TotalProgress++;
                 }
-                    
-                Choices[(Choice1, Choice2)] = Choice1;
-                Choices[(Choice2, Choice1)] = Choice1;
+
+                var key = string.Compare(Choice1, Choice2) < 0 ? (Choice1, Choice2) : (Choice2, Choice1);
+
+                Choices[key] = Choice1;
 
                 OnPropertyChanged(nameof(UndoVisible));
                 OnPropertyChanged(nameof(StoredChoices));
@@ -596,9 +598,10 @@ namespace TournamentWizard.ViewModels
                     CurrentProgress++;
                     TotalProgress++;
                 }
-                    
-                Choices[(Choice1, Choice2)] = Choice2;
-                Choices[(Choice2, Choice1)] = Choice2;
+
+                var key = string.Compare(Choice1, Choice2) < 0 ? (Choice1, Choice2) : (Choice2, Choice1);
+
+                Choices[key] = Choice2;
 
                 OnPropertyChanged(nameof(UndoVisible));
                 OnPropertyChanged(nameof(StoredChoices));
@@ -719,7 +722,13 @@ namespace TournamentWizard.ViewModels
                 OutputSelected = OutputItems.Count - 1;
 
                 if (Data.Choices is not null)
-                    Choices = Data.Choices;
+                {
+                    //When loading choices, we want to make sure that the keys are in the correct order (item1 < item2) to avoid any issues with lookups later on, so we check the order of the first key and reorder if necessary
+                    if (Data.Choices.Where(x => string.Compare(x.Key.Item1, x.Key.Item2) > 0).Any())
+                        Choices = Data.Choices.Where(x => string.Compare(x.Key.Item1, x.Key.Item2) < 0).ToDictionary(x => x.Key, x => x.Value);
+                    else
+                        Choices = Data.Choices;
+                }                    
                 else
                     Choices.Clear();
 
@@ -850,8 +859,9 @@ namespace TournamentWizard.ViewModels
 
                         CurrentTier!.Outputs = UndoState.CurrentOutputs.ToList();
 
-                        Choices.Remove((UndoState.Choice1, UndoState.Choice2));
-                        Choices.Remove((UndoState.Choice2, UndoState.Choice1));
+                        var key = string.Compare(UndoState.Choice1, UndoState.Choice2) < 0 ? (UndoState.Choice1, UndoState.Choice2) : (UndoState.Choice2, UndoState.Choice1);
+
+                        Choices.Remove(key);
 
                         OnPropertyChanged(nameof(StoredChoices));
                         GetPercentMatch();
@@ -944,7 +954,8 @@ namespace TournamentWizard.ViewModels
                     foreach (var item2 in InputItems.Where(x => x.CompareTo(item1) > 0))
                     {
                         total++;
-                        if (Choices.ContainsKey((item1, item2)))
+                        var key = string.Compare(item1, item2) < 0 ? (item1, item2) : (item2, item1);
+                        if (Choices.ContainsKey(key))
                             match++;
                     }
                 }
@@ -994,7 +1005,7 @@ namespace TournamentWizard.ViewModels
                 var SortedItems = CurrentOutputs.AsParallel().Select((x, i) =>
                 {
                     //Calculate the percentage of successes with this item in memory
-                    var matchups = Choices.Where(c => c.Key.Item1 == x && CurrentOutputs.Contains(c.Key.Item2)).Select(c => c.Value == x ? 1.0 : 0.0);
+                    var matchups = Choices.Where(c => (c.Key.Item1 == x && CurrentOutputs.Contains(c.Key.Item2)) || (c.Key.Item2 == x && CurrentOutputs.Contains(c.Key.Item1))).Select(c => c.Value == x ? 1.0 : 0.0);
 
                     var success = matchups.Any() ? matchups.Average() : 0.5; //If no matchups exist, use 0.5 to represent random chance, and use previous rank as a fallback 
                     return new { Item = x, Rank = i, Success = success };
@@ -1172,7 +1183,7 @@ namespace TournamentWizard.ViewModels
             //Set up a timer to check if autosaving is necessary, every 1 second
             AutoSaveTimer.Elapsed += async (s, e) =>
             {
-                bool SaveNeeded = (InputItems.Count == 0 && OutputItems.Count > 0) || (LastSavedCount.HasValue ?
+                bool SaveNeeded = (InputItems.Count == 0 && OutputItems.Count > 0 && !LastSavedCount.HasValue) || (LastSavedCount.HasValue ?
                     (int)(OutputItems.Count / 5) > (int)(LastSavedCount.Value / 5) : //Save every 5 new items
                     OutputItems.Count >= 5); //If LastSavedCount is null, save when there are at least 5 items
 
