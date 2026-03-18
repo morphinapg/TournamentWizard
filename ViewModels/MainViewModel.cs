@@ -1366,24 +1366,6 @@ namespace TournamentWizard.ViewModels
                     else
                         Matchups[index.x, index.y] = -1; //no matchup
                 });
-
-                //Now we have a matrix of all possible matchups, we can calculate the global win rate for each item based on all of its matchups, to use as a tiebreaker in the tournament simulation
-                double[] GlobalWinRates = new double[CurrentOutputs.Count];
-
-                Parallel.For(0, CurrentOutputs.Count, i =>
-                {
-                    int globalWins = 0, globalLosses = 0;
-                    for (int j = 0; j < CurrentOutputs.Count; j++)
-                    {
-                        if (i == j) continue;
-                        if (Matchups[i, j] == 1) globalWins++;
-                        else if (Matchups[i, j] == 0) globalLosses++;
-                    }
-                    GlobalWinRates[i] = (globalWins + globalLosses) > 0
-                        ? (double)globalWins / (globalWins + globalLosses)
-                        : 0.5;
-                });
-
                 //Now we have a matrix of all possible matchups, we can simulate the tournament using this matrix to determine the optimal sorting
 
                 HashSet<int> Winners = new();
@@ -1395,28 +1377,42 @@ namespace TournamentWizard.ViewModels
 
                 List<int> CurrentItems = AllItems.ToList();
 
+                int[]
+                    MasterWins = new int[CurrentOutputs.Count],
+                    MasterPlays = new int[CurrentOutputs.Count];
+
+                double[] GlobalWinRates = new double[CurrentOutputs.Count];
+
+                Parallel.ForEach(CurrentItems, x =>
+                {
+                    foreach (var y in CurrentItems)
+                    {
+                        if (x == y) continue;
+                        if (Matchups[x, y] == 1) { MasterWins[x]++; MasterPlays[x]++; }
+                        else if (Matchups[x, y] == 0) { MasterPlays[x]++; }
+                    }
+
+                    // GlobalWinRates NEVER changes, so we calculate it once here and keep it forever
+                    GlobalWinRates[x] = MasterPlays[x] > 0 ? (double)MasterWins[x] / MasterPlays[x] : 0.5;
+                });
+
+                int[] 
+                    ActiveWins = MasterWins.ToArray(), 
+                    ActivePlays = MasterPlays.ToArray();
+                
+
                 while (Winners.Count < CurrentOutputs.Count)
                 {
                     // 1. Give everyone a running tally for this round
-                    int[] activeWins = new int[CurrentOutputs.Count];
-                    int[] activePlayed = new int[CurrentOutputs.Count];
-
-                    foreach (var x in CurrentItems)
-                    {
-                        foreach (var y in CurrentItems)
-                        {
-                            if (x == y) continue;
-                            if (Matchups[x, y] == 1) { activeWins[x]++; activePlayed[x]++; }
-                            else if (Matchups[x, y] == 0) { activePlayed[x]++; }
-                        }
-                    }
+                    Array.Copy(MasterWins, ActiveWins, CurrentOutputs.Count);
+                    Array.Copy(MasterPlays, ActivePlays, CurrentOutputs.Count); 
 
                     while (CurrentItems.Count > 1)
                     {
                         foreach (var x in CurrentItems)
                         {
                             // O(1) instant lookup instead of a nested loop!
-                            double WinRate = activePlayed[x] > 0 ? (double)activeWins[x] / activePlayed[x] : 0.5;
+                            double WinRate = ActivePlays[x] > 0 ? (double)ActiveWins[x] / ActivePlays[x] : 0.5;
                             double GlobalWinRate = GlobalWinRates[x];
 
                             if (WinRate > CurrentWinRate) continue;
@@ -1437,8 +1433,8 @@ namespace TournamentWizard.ViewModels
                         // 3. THE SPEED TRICK: Just update the tallies of the survivors!
                         foreach (var survivor in CurrentItems)
                         {
-                            if (Matchups[survivor, CurrentLoser] == 1) { activeWins[survivor]--; activePlayed[survivor]--; }
-                            else if (Matchups[survivor, CurrentLoser] == 0) { activePlayed[survivor]--; }
+                            if (Matchups[survivor, CurrentLoser] == 1) { ActiveWins[survivor]--; ActivePlays[survivor]--; }
+                            else if (Matchups[survivor, CurrentLoser] == 0) { ActivePlays[survivor]--; }
                         }
 
                         CurrentLoser = -1;
@@ -1500,14 +1496,29 @@ namespace TournamentWizard.ViewModels
                     //Once only one item remains, we declare it the winner and repeat the process until all items have been declared winners and we have an optimal sorting
                     int Winner = CurrentItems[0];
                     Winners.Add(Winner);
-
                     NewOutputs.Add(Winners.Count + ". " + CurrentOutputs[Winner]);
+
+                    // 3. THE SPEED TRICK: Just update the tallies of the survivors!
+                    foreach (var survivor in CurrentItems)
+                    {
+                        if (Matchups[survivor, Winner] == 1) { ActiveWins[survivor]--; ActivePlays[survivor]--; }
+                        else if (Matchups[survivor, Winner] == 0) { ActivePlays[survivor]--; }
+                    }
 
                     //Filter the current items to only those that haven't been eliminated or declared winners
                     CurrentItems = AllItems.Except(Winners).ToList();
                 }
             });
 
+            Updater.Stop();
 
+            UpdateOutputs();
+
+            OutputSelected = 0;
+            OutputSelected = -1;
+
+            OptimizeOpacity = 1;
+            FadeOptimizeTimer.Start();
+        }
     }
 }
