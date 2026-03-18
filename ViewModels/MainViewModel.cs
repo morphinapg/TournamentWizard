@@ -234,16 +234,6 @@ namespace TournamentWizard.ViewModels
                     //Reset the AutoSave since the current save will no longer be relevant after pasting new items
                     if (LastSavedCount.HasValue)
                         LastSavedCount = null;
-
-                    try
-                    {
-                        if (File.Exists(AutoSavePath))
-                            File.Delete(AutoSavePath);
-                    }
-                    catch
-                    {
-                        //Ignore any errors that occur while deleting the file, since it's not critical if the file fails to delete for some reason
-                    }
                 }
             }
         }
@@ -679,17 +669,6 @@ namespace TournamentWizard.ViewModels
 
                         await LoadDataFromPathAsync(file.LocalPath);
 
-                        //Reset AutoSave since we just loaded a file
-                        try
-                        {
-                            if (File.Exists(AutoSavePath))
-                                File.Delete(AutoSavePath);
-                        }
-                        catch
-                        {
-                            //Ignore any errors that occur while deleting the file, since it's not critical if the file fails to delete for some reason
-                        }
-
 
                         LastSavedCount = OutputItems.Count;
                     }
@@ -800,19 +779,7 @@ namespace TournamentWizard.ViewModels
                             //Reset AutoSave if OutputItems has increased since we last autosaved
 
                             if (LastSavedCount.HasValue && OutputItems.Count > LastSavedCount)
-                            {
-                                try
-                                {
-                                    if (File.Exists(AutoSavePath))
-                                        File.Delete(AutoSavePath);
-                                }
-                                catch
-                                {
-                                    //Ignore any errors that occur while deleting the file, since it's not critical if the file fails to delete for some reason
-                                }
-
                                 LastSavedCount = OutputItems.Count;
-                            }
                             
                         }
                     }
@@ -973,7 +940,7 @@ namespace TournamentWizard.ViewModels
         }
 
         //Command Handler for optimizing schedule
-        public CommandHandler OptimizeSorting => new CommandHandler(Optimize_Sorting);
+        public CommandHandler OptimizeSorting => new CommandHandler(Optimize_Simulation);
 
         public async void Optimize_Sorting()
         {
@@ -1040,15 +1007,6 @@ namespace TournamentWizard.ViewModels
             //
 
             //Reset the AutoSave since the current save may no longer be accurate after optimizing, so we force a new save at the next opportunity
-            try
-            {
-                if (File.Exists(AutoSavePath))
-                    File.Delete(AutoSavePath);
-            }
-            catch
-            {
-                //Ignore any errors that occur while deleting the file, since it's not critical if the file fails to delete for some reason
-            }
 
             if (LastSavedCount.HasValue)
                 LastSavedCount = null;
@@ -1183,9 +1141,9 @@ namespace TournamentWizard.ViewModels
             //Set up a timer to check if autosaving is necessary, every 1 second
             AutoSaveTimer.Elapsed += async (s, e) =>
             {
-                bool SaveNeeded = (InputItems.Count == 0 && OutputItems.Count > 0 && !LastSavedCount.HasValue) || (LastSavedCount.HasValue ?
+                bool SaveNeeded = LastSavedCount.HasValue ?
                     (int)(OutputItems.Count / 5) > (int)(LastSavedCount.Value / 5) : //Save every 5 new items
-                    OutputItems.Count >= 5); //If LastSavedCount is null, save when there are at least 5 items
+                    true; //If we haven't saved before, we want to save immediately
 
                 if (SaveNeeded)
                 {
@@ -1333,6 +1291,235 @@ namespace TournamentWizard.ViewModels
             }
         });
 
+        async void Optimize_Simulation()
+        {
+            //First, gather all of the output items without their numbers
+            var CurrentOutputs = new List<string>();
 
+            int index = 0;
+
+            foreach (var item in OutputItems)
+            {
+                //Find where the decimal is
+                index = item.IndexOf(".");
+
+                //Get substring
+                index += 2;
+                var CurrentItem = item.Substring(index, item.Length - index);
+
+                CurrentOutputs.Add(CurrentItem);
+            }
+
+            List<string> NewOutputs = new();
+
+            //Set up a timer to check for new outputs every 100ms, and add them to the output list as they come in, so the user can see the results as they are calculated instead of waiting for the entire simulation to finish
+
+            bool updatedyet = false;
+
+            void UpdateOutputs()
+            {
+                if (!updatedyet)
+                {
+                    OutputItems.Clear();
+                    updatedyet = true;
+                }
+                   
+
+                if (NewOutputs.Count > OutputItems.Count)
+                {
+                    //Add the missing items
+                    for (int i = OutputItems.Count; i < NewOutputs.Count; i++)
+                        OutputItems.Add(NewOutputs[i]);
+                }
+            }
+
+            DispatcherTimer Updater = new();
+            Updater.Interval = TimeSpan.FromMilliseconds(100);
+
+
+            Updater.Tick += (s, e) =>
+            {
+                UpdateOutputs();
+            };
+
+            Updater.Start();
+
+            await Task.Run(async () =>
+            {
+                //Define array to represent all possible matchups
+                var Matchups = new int[CurrentOutputs.Count, CurrentOutputs.Count];
+
+                var AllIndexes = Enumerable.Range(0, CurrentOutputs.Count).Select(x => Enumerable.Range(0, CurrentOutputs.Count).Select(y => (x, y))).SelectMany(x => x);
+
+                Parallel.ForEach(AllIndexes, index =>
+                {
+                    var item1 = CurrentOutputs[index.x];
+                    var item2 = CurrentOutputs[index.y];
+                    var key = string.Compare(item1, item2) < 0 ? (item1, item2) : (item2, item1);
+                    if (Choices.ContainsKey(key))
+                    {
+                        if (Choices[key] == item1)
+                            Matchups[index.x, index.y] = 1; //item1 beats item2
+                        else
+                            Matchups[index.x, index.y] = 0; //item2 beats item1
+                    }
+                    else
+                        Matchups[index.x, index.y] = -1; //no matchup
+                });
+
+                //Now we have a matrix of all possible matchups, we can simulate the tournament using this matrix to determine the optimal sorting
+
+                HashSet<int> Winners = new();
+
+                var AllItems = Enumerable.Range(0, CurrentOutputs.Count).ToList();
+
+                int CurrentLoser = -1;
+                double CurrentWinRate = 2, CurrentGlobalWinRate = 2;
+
+                List<int> CurrentItems = AllItems.ToList();
+
+                int[]
+                    MasterWins = new int[CurrentOutputs.Count],
+                    MasterPlays = new int[CurrentOutputs.Count];
+
+                double[] GlobalWinRates = new double[CurrentOutputs.Count];
+
+                Parallel.ForEach(CurrentItems, x =>
+                {
+                    foreach (var y in CurrentItems)
+                    {
+                        if (x == y) continue;
+                        if (Matchups[x, y] == 1) { MasterWins[x]++; MasterPlays[x]++; }
+                        else if (Matchups[x, y] == 0) { MasterPlays[x]++; }
+                    }
+
+                    // GlobalWinRates NEVER changes, so we calculate it once here and keep it forever
+                    GlobalWinRates[x] = MasterPlays[x] > 0 ? (double)MasterWins[x] / MasterPlays[x] : 0.5;
+                });
+
+                int[] 
+                    ActiveWins = MasterWins.ToArray(), 
+                    ActivePlays = MasterPlays.ToArray();
+                
+
+                while (Winners.Count < CurrentOutputs.Count)
+                {
+                    // 1. Give everyone a running tally for this round
+                    Array.Copy(MasterWins, ActiveWins, CurrentOutputs.Count);
+                    Array.Copy(MasterPlays, ActivePlays, CurrentOutputs.Count);
+
+                    while (CurrentItems.Count > 1)
+                    {
+                        foreach (var x in CurrentItems)
+                        {
+                            // O(1) instant lookup instead of a nested loop!
+                            double WinRate = ActivePlays[x] > 0 ? (double)ActiveWins[x] / ActivePlays[x] : 0.5;
+                            double GlobalWinRate = GlobalWinRates[x];
+
+                            if (WinRate > CurrentWinRate) continue;
+
+                            if (WinRate < CurrentWinRate ||
+                                GlobalWinRate < CurrentGlobalWinRate ||
+                                (GlobalWinRate == CurrentGlobalWinRate && x > CurrentLoser))
+                            {
+                                CurrentLoser = x;
+                                CurrentWinRate = WinRate;
+                                CurrentGlobalWinRate = GlobalWinRate;
+                            }
+                        }
+
+                        // 2. Remove the loser from the pool
+                        CurrentItems.Remove(CurrentLoser);
+
+                        // 3. THE SPEED TRICK: Just update the tallies of the survivors!
+                        foreach (var survivor in CurrentItems)
+                        {
+                            if (Matchups[survivor, CurrentLoser] == 1) { ActiveWins[survivor]--; ActivePlays[survivor]--; }
+                            else if (Matchups[survivor, CurrentLoser] == 0) { ActivePlays[survivor]--; }
+                        }
+
+                        CurrentLoser = -1;
+                        CurrentWinRate = 2;
+                        CurrentGlobalWinRate = 2;
+                    }
+
+                    //while (CurrentItems.Count > 1)
+                    //{
+                    //    //Iterate through all possibilities, calculating win rate and choosing the worst performing item each time to eliminate, until only one item remains
+                    //    foreach (var x in CurrentItems)
+                    //    {
+                    //        int Wins = 0, Losses = 0;
+
+                    //        foreach (var y in CurrentItems)
+                    //        {
+                    //            if (x != y)
+                    //            {
+                    //                if (Matchups[x, y] == 1)
+                    //                    Wins++;
+                    //                else if (Matchups[x, y] == 0)
+                    //                    Losses++;
+                    //            }
+                    //        }
+
+                    //        double 
+                    //            WinRate = Losses + Wins > 0 ? (double)Wins / (Wins + Losses) : 0.5,
+                    //            GlobalWinRate = GlobalWinRates[x];
+
+                    //        if (WinRate > CurrentWinRate)
+                    //        {
+                    //            continue;
+                    //        }
+
+                    //        bool NewLoser =
+                    //            WinRate < CurrentWinRate || //Primary sort by win rate, lowest first
+                    //            GlobalWinRate < CurrentGlobalWinRate || //Secondary sort by global win rate, lowest first
+                    //            (GlobalWinRate == CurrentGlobalWinRate && x > CurrentLoser); //Tertiary sort by previous rank, lowest first
+
+                    //        if (NewLoser)
+                    //        {
+                    //            CurrentLoser = x;
+                    //            CurrentWinRate = WinRate;
+                    //            CurrentGlobalWinRate = GlobalWinRates[x];
+                    //        }
+                    //    }
+
+                    //    //Remove the current loser from the current items list, so we don't consider it in future iterations
+                    //    CurrentItems.Remove(CurrentLoser);
+
+                    //    //Reset the current loser and win rate for the next iteration
+                    //    CurrentLoser = -1;
+                    //    CurrentWinRate = 2;
+                    //    CurrentGlobalWinRate = 2;
+                    //}
+
+
+
+                    //Once only one item remains, we declare it the winner and repeat the process until all items have been declared winners and we have an optimal sorting
+                    int Winner = CurrentItems[0];
+                    Winners.Add(Winner);
+                    NewOutputs.Add(Winners.Count + ". " + CurrentOutputs[Winner]);
+
+                    // 3. THE SPEED TRICK: Just update the tallies of the survivors!
+                    foreach (var survivor in CurrentItems)
+                    {
+                        if (Matchups[survivor, Winner] == 1) { ActiveWins[survivor]--; ActivePlays[survivor]--; }
+                        else if (Matchups[survivor, Winner] == 0) { ActivePlays[survivor]--; }
+                    }
+
+                    //Filter the current items to only those that haven't been eliminated or declared winners
+                    CurrentItems = AllItems.Except(Winners).ToList();
+                }
+            });
+
+            Updater.Stop();
+
+            UpdateOutputs();
+
+            OutputSelected = 0;
+            OutputSelected = -1;
+
+            OptimizeOpacity = 1;
+            FadeOptimizeTimer.Start();
+        }
     }
 }
