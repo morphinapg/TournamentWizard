@@ -1406,7 +1406,7 @@ namespace TournamentWizard.ViewModels
                 {
                     // 1. Give everyone a running tally for this round
                     Array.Copy(MasterWins, ActiveWins, CurrentOutputs.Count);
-                    Array.Copy(MasterPlays, ActivePlays, CurrentOutputs.Count);
+                    Array.Copy(MasterPlays, ActivePlays, CurrentOutputs.Count); 
 
                     while (CurrentItems.Count > 1)
                     {
