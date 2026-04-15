@@ -2,6 +2,7 @@
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Shapes;
+using Avalonia.Input.Platform;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using MsBox.Avalonia;
@@ -96,7 +97,7 @@ namespace TournamentWizard.ViewModels
                 _newName = value;
                 OnPropertyChanged(nameof(NewName));
 
-                
+
             }
         }
 
@@ -183,11 +184,11 @@ namespace TournamentWizard.ViewModels
 
                     AutoSaveOpacity = 0;
                 }
-                    
+
             }
         }
 
-        int? LastSavedCount;
+        int? LastSavedOutputs, LastSavedChoices;
 
         Timer AutoSaveTimer = new Timer(1000);
 
@@ -212,7 +213,7 @@ namespace TournamentWizard.ViewModels
 
                 if (Clipboard is not null)
                 {
-                    var text = await Clipboard.GetTextAsync();
+                    var text = await Clipboard.TryGetTextAsync();
 
                     if (text is not null)
                     {
@@ -232,8 +233,8 @@ namespace TournamentWizard.ViewModels
                     }
 
                     //Reset the AutoSave since the current save will no longer be relevant after pasting new items
-                    if (LastSavedCount.HasValue)
-                        LastSavedCount = null;
+                    if (LastSavedOutputs.HasValue)
+                        LastSavedOutputs = null;
                 }
             }
         }
@@ -310,7 +311,7 @@ namespace TournamentWizard.ViewModels
         public CommandHandler Start_Replacement => new CommandHandler(StartReplacement);
 
         async void StartReplacement()
-        {  
+        {
             if (SelectedItem is not null)
             {
                 //First find all matching choices
@@ -355,7 +356,7 @@ namespace TournamentWizard.ViewModels
 
                     ReplacementTier = new Tier(inputs, true);
                     ReplacementMode = true;
-                    ReplacementItem = SelectedItem;                    
+                    ReplacementItem = SelectedItem;
 
                     //Finally, we need to delete the old choices
                     foreach (var item in MatchingChoices)
@@ -365,7 +366,7 @@ namespace TournamentWizard.ViewModels
 
                     GetNext();
                 }
-            }            
+            }
         }
 
         public string? ReplacementString => ReplacementMode && ReplacementTier is not null ?
@@ -375,7 +376,7 @@ namespace TournamentWizard.ViewModels
 
         async void GetNext()
         {
-            
+
             if (CurrentTier is not null)
             {
                 await Task.Run(async () =>
@@ -389,7 +390,7 @@ namespace TournamentWizard.ViewModels
                     {
                         choice1 = null;
                         choice2 = null;
-                        
+
                         var NextItems = CurrentTier.GetNext();
                         CurrentTier.CurrentPosition += 2;
                         if (NextItems.Length == 2)
@@ -451,8 +452,8 @@ namespace TournamentWizard.ViewModels
                         if (ReplacementMode)
                             OnPropertyChanged(nameof(ReplacementString));
                     });
-                });                
-            }           
+                });
+            }
         }
 
         int _outputSelected = -1;
@@ -498,14 +499,14 @@ namespace TournamentWizard.ViewModels
                         OnPropertyChanged(nameof(OutputCopyVisible));
                         OnPropertyChanged(nameof(CopyVisible));
                     });
-                    
+
                     GetPercentMatch();
 
                     if (InputItems.Count > 0)
                     {
                         await StartTournament();
                         return false;
-                    }                                         
+                    }
 
                     return true;
                 }
@@ -526,7 +527,7 @@ namespace TournamentWizard.ViewModels
                     TotalTotal = Enumerable.Range(1, InputItems.Count).Select(x => GetTotalForInputs(x)).Sum();
                     TotalProgress = 0;
                 }
-            });            
+            });
         }
 
         int GetTotalForInputs(int inputs)
@@ -566,7 +567,7 @@ namespace TournamentWizard.ViewModels
                 OnPropertyChanged(nameof(StoredChoices));
                 GetPercentMatch();
 
-                
+
 
                 //If future tiers remain from undo actions, remove them
                 if (Tiers.Count > TierIndex + 1)
@@ -596,7 +597,7 @@ namespace TournamentWizard.ViewModels
                 OnPropertyChanged(nameof(UndoVisible));
                 OnPropertyChanged(nameof(StoredChoices));
                 GetPercentMatch();
-                
+
 
                 //If future tiers remain from undo actions, remove them
                 if (Tiers.Count > TierIndex + 1)
@@ -670,7 +671,7 @@ namespace TournamentWizard.ViewModels
                         await LoadDataFromPathAsync(file.LocalPath);
 
 
-                        LastSavedCount = OutputItems.Count;
+                        LastSavedOutputs = null;
                     }
                 }
             }
@@ -707,7 +708,7 @@ namespace TournamentWizard.ViewModels
                         Choices = Data.Choices.Where(x => string.Compare(x.Key.Item1, x.Key.Item2) < 0).ToDictionary(x => x.Key, x => x.Value);
                     else
                         Choices = Data.Choices;
-                }                    
+                }
                 else
                     Choices.Clear();
 
@@ -745,7 +746,7 @@ namespace TournamentWizard.ViewModels
                     ReplacementTier.CurrentPosition -= 2;
                     OnPropertyChanged(nameof(ReplacementString));
                     ReplacementTier.CurrentPosition += 2;
-                }                
+                }
             }
         }
 
@@ -778,9 +779,9 @@ namespace TournamentWizard.ViewModels
 
                             //Reset AutoSave if OutputItems has increased since we last autosaved
 
-                            if (LastSavedCount.HasValue && OutputItems.Count > LastSavedCount)
-                                LastSavedCount = OutputItems.Count;
-                            
+                            if (LastSavedOutputs.HasValue && OutputItems.Count > LastSavedOutputs)
+                                LastSavedOutputs = OutputItems.Count;
+
                         }
                     }
                 }
@@ -847,8 +848,8 @@ namespace TournamentWizard.ViewModels
                         }
 
                         //Since we just undid an action, the previous save point may no longer be accurate, so we reset it to null to force a new save at the next opportunity
-                        if (LastSavedCount.HasValue)
-                            LastSavedCount = null;
+                        if (LastSavedOutputs.HasValue)
+                            LastSavedOutputs = null;
                     }
                     else
                     {
@@ -870,7 +871,7 @@ namespace TournamentWizard.ViewModels
 
                 if (Flyout is not null)
                     Flyout.Hide();
-            });            
+            });
         }
 
         public CommandHandler Delete_Click => new CommandHandler(DeleteItem);
@@ -936,7 +937,7 @@ namespace TournamentWizard.ViewModels
                     Dispatcher.UIThread.Post(() => PercentMatch = "(0 left)");
                 else
                     Dispatcher.UIThread.Post(() => PercentMatch = " (" + percent.ToString("P2") + " of possible choices matched - " + (total - match).ToString("N0") + " left)");
-            });            
+            });
         }
 
         //Command Handler for optimizing schedule
@@ -961,7 +962,7 @@ namespace TournamentWizard.ViewModels
                 CurrentOutputs.Add(CurrentItem);
             }
 
-            
+
             //OnPropertyChanged(nameof(OptimizeVisible));
 
             //ButtonsEnabled = false;
@@ -988,7 +989,7 @@ namespace TournamentWizard.ViewModels
 
                     OutputSelected = 0;
                     OutputSelected = -1;
-                });    
+                });
             });
 
             //OnPropertyChanged(nameof(OptimizeVisible));
@@ -1008,8 +1009,7 @@ namespace TournamentWizard.ViewModels
 
             //Reset the AutoSave since the current save may no longer be accurate after optimizing, so we force a new save at the next opportunity
 
-            if (LastSavedCount.HasValue)
-                LastSavedCount = null;
+            LastSavedOutputs = null;
         }
 
         bool _buttonsEnabled = true;
@@ -1086,7 +1086,7 @@ namespace TournamentWizard.ViewModels
 
                 OutputClipboardOpacity = 1;
                 FadeTimer.Start();
-            }            
+            }
         });
 
         Timer FadeTimer = new Timer(100), FadeOptimizeTimer = new Timer(100);
@@ -1105,7 +1105,7 @@ namespace TournamentWizard.ViewModels
                     if (OutputClipboardOpacity < 0)
                         OutputClipboardOpacity = 0;
                 });
-                if (OutputClipboardOpacity == 0 && ClipboardOpacity ==0)
+                if (OutputClipboardOpacity == 0 && ClipboardOpacity == 0)
                     FadeTimer.Stop();
             };
 
@@ -1124,7 +1124,7 @@ namespace TournamentWizard.ViewModels
             //AUTO SAVE SETUP
 
             //Define the autosave folder path
-            var folder = System.IO.Path.Combine( Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),"TournamentWizard");
+            var folder = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TournamentWizard");
 
             //Create the folder if it doesn't exist
             Directory.CreateDirectory(folder);
@@ -1141,8 +1141,8 @@ namespace TournamentWizard.ViewModels
             //Set up a timer to check if autosaving is necessary, every 1 second
             AutoSaveTimer.Elapsed += async (s, e) =>
             {
-                bool SaveNeeded = LastSavedCount.HasValue ?
-                    (int)(OutputItems.Count / 5) > (int)(LastSavedCount.Value / 5) : //Save every 5 new items
+                bool SaveNeeded = LastSavedOutputs.HasValue && LastSavedChoices.HasValue ?
+                    (OutputItems.Count / 5) > (LastSavedOutputs.Value / 5) || (Choices.Count - LastSavedChoices > 24) : //Save every 5 new items or 25 choices, whichever comes first
                     true; //If we haven't saved before, we want to save immediately
 
                 if (SaveNeeded)
@@ -1153,7 +1153,8 @@ namespace TournamentWizard.ViewModels
                     {
                         await WriteObjectAsync<MainViewModel>(AutoSavePath, this);
 
-                        LastSavedCount = OutputItems.Count;
+                        LastSavedOutputs = OutputItems.Count;
+                        LastSavedChoices = Choices.Count;
                     }
                     catch
                     {
@@ -1245,12 +1246,12 @@ namespace TournamentWizard.ViewModels
                     else if (item2 == OldName)
                         item2 = NewName;
 
-                    if (value == OldName) 
+                    if (value == OldName)
                         value = NewName;
 
                     var key = string.Compare(item1, item2) < 0 ? (item1, item2) : (item2, item1);
 
-                    Choices[key] = value;                    
+                    Choices[key] = value;
                 }
 
                 foreach (var tier in Tiers)
@@ -1323,7 +1324,7 @@ namespace TournamentWizard.ViewModels
                     OutputItems.Clear();
                     updatedyet = true;
                 }
-                   
+
 
                 if (NewOutputs.Count > OutputItems.Count)
                 {
@@ -1379,7 +1380,9 @@ namespace TournamentWizard.ViewModels
 
                 int[]
                     MasterWins = new int[CurrentOutputs.Count],
-                    MasterPlays = new int[CurrentOutputs.Count];
+                    MasterPlays = new int[CurrentOutputs.Count],
+                    ActiveWins = new int[CurrentOutputs.Count],
+                    ActivePlays = new int[CurrentOutputs.Count];
 
                 double[] GlobalWinRates = new double[CurrentOutputs.Count];
 
@@ -1396,16 +1399,14 @@ namespace TournamentWizard.ViewModels
                     GlobalWinRates[x] = MasterPlays[x] > 0 ? (double)MasterWins[x] / MasterPlays[x] : 0.5;
                 });
 
-                int[] 
-                    ActiveWins = MasterWins.ToArray(), 
-                    ActivePlays = MasterPlays.ToArray();
-                
+                //For manually inspecting the win rates and matchups during development, this LINQ query generates a sorted list of items with their global win rates, sorted from highest to lowest win rate
+                //var SortedWins = Enumerable.Range(0, CurrentOutputs.Count).Select(x => new { Item = CurrentOutputs[x], WinRate = GlobalWinRates[x] }).OrderByDescending(x => x.WinRate).ToList();
 
                 while (Winners.Count < CurrentOutputs.Count)
                 {
                     // 1. Give everyone a running tally for this round
                     Array.Copy(MasterWins, ActiveWins, CurrentOutputs.Count);
-                    Array.Copy(MasterPlays, ActivePlays, CurrentOutputs.Count); 
+                    Array.Copy(MasterPlays, ActivePlays, CurrentOutputs.Count);
 
                     while (CurrentItems.Count > 1)
                     {
@@ -1519,6 +1520,28 @@ namespace TournamentWizard.ViewModels
 
             OptimizeOpacity = 1;
             FadeOptimizeTimer.Start();
+
+            LastSavedOutputs = null;
         }
+
+        public CommandHandler ClearState => new CommandHandler(() =>
+        {
+            Choices.Clear();
+            InputItems.Clear();
+            OutputItems.Clear();
+            Tiers.Clear();
+            CurrentTotal = 0;
+            TotalTotal = 0;
+            CurrentProgress = 0;
+            TotalProgress = 0;
+            Choice1 = null;
+            Choice2 = null;
+            TierIndex = 0;
+            ReplacementMode = false;
+            ReplacementTier = null;
+
+
+            GetPercentMatch();
+        });
     }
 }

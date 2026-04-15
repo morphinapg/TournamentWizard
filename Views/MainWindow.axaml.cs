@@ -80,6 +80,11 @@ namespace TournamentWizard.Views
 
         protected override void OnClosing(WindowClosingEventArgs e)
         {
+            //Set the window state to normal to prevent saving the maximized or minimized state
+            //Maximize first to unsnap the window if it's snapped, then set to normal to save the normal state
+            WindowState = WindowState.Maximized;
+            WindowState = WindowState.Normal;
+
             Preferences.Set("Top", Position.Y);
             Preferences.Set("Left", Position.X);
             Preferences.Set("Width", Width);

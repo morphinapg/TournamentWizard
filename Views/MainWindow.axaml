@@ -63,6 +63,7 @@
       
 
       <StackPanel Orientation="Horizontal" Grid.Column="2">
+        <Button Content="Clear State" Command="{Binding ClearState}"/>
         <Button Content="Load State" Command="{Binding Load_State}"/>
         <Button Content="Save State" Command="{Binding Save_State}"/>
       </StackPanel>
