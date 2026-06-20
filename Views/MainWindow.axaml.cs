@@ -25,6 +25,13 @@ namespace TournamentWizard.Views
                 Height = height;
                 Position = new PixelPoint(left, top);                
             }
+
+            
+        }
+
+        protected override void OnResized(WindowResizedEventArgs e)
+        {
+            base.OnResized(e);
         }
 
         protected override void OnDataContextChanged(EventArgs e)

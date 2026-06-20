@@ -1542,6 +1542,8 @@ namespace TournamentWizard.ViewModels
 
 
             GetPercentMatch();
+            OnPropertyChanged(nameof(StoredChoices));
+            OnPropertyChanged(nameof(PercentMatch));
         });
     }
 }
