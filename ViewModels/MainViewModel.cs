@@ -316,7 +316,7 @@ namespace TournamentWizard.ViewModels
             {
                 //First find all matching choices
                 var MatchingChoices = Choices.Where(x => x.Key.Item1 == SelectedItem || x.Key.Item2 == SelectedItem).ToList();
-                var Matching = MatchingChoices.Count();// / 2;
+                var Matching = MatchingChoices.Count;// / 2;
 
                 //Ask the user whether they are sure they want to replace the choices
                 var result = await MessageBoxManager.GetMessageBoxStandard("Are you sure?", "Are you sure you want to replace all choices for '" + SelectedItem + "'?\r\n\r\n" + Matching + " choices will be replaced!", MsBox.Avalonia.Enums.ButtonEnum.YesNo, MsBox.Avalonia.Enums.Icon.Warning).ShowAsync();
