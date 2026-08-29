@@ -11,6 +11,5 @@
   
     <Application.Styles>
         <FluentTheme />
-        <StyleInclude Source="avares://FluentAvalonia.ProgressRing/Styling/Controls/ProgressRing.axaml" />
     </Application.Styles>
 </Application>

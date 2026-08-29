@@ -3,7 +3,7 @@
         xmlns:vm="using:TournamentWizard.ViewModels"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:ui="using:FluentAvalonia.UI.Controls"
+        xmlns:ui="clr-namespace:AvaloniaProgressRing;assembly=AvaloniaProgressRing"
         mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="768"
         Width="1280" Height="768" WindowStartupLocation="CenterScreen"
         x:Class="TournamentWizard.Views.MainWindow"
@@ -58,7 +58,34 @@
 
         <StackPanel Orientation="Horizontal" Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center">
 			<CheckBox Content="Auto Save" Grid.Column="1" HorizontalAlignment="Center" IsChecked="{Binding AutoSave}" Focusable="False"/>
-            <ui:ProgressRing IsIndeterminate="True" BorderThickness="5" Width="25" Height="25" HorizontalAlignment="Center" Margin="15" Opacity="{Binding AutoSaveOpacity}"/>
+            <!--<ui:ProgressRing BorderThickness="5" Width="25" Height="25" HorizontalAlignment="Center" Margin="15" Opacity="{Binding AutoSaveOpacity}"/>-->
+
+            <Path Data="M 12,2 A 10,10 0 1,1 2,12" 
+                  Stretch="Uniform"
+                  Stroke="{DynamicResource SystemAccentColor}" 
+                  StrokeThickness="5"
+                  StrokeLineCap="Round"
+                  Width="25" Height="25"
+                  Margin="15"
+                  HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="{Binding AutoSaveOpacity}">
+                <Path.Styles>
+                    <Style Selector="Path">
+                        <Setter Property="RenderTransform">
+                            <RotateTransform />
+                        </Setter>
+                        <Style.Animations>
+                            <Animation Duration="0:0:1" IterationCount="Infinite">
+                                <KeyFrame Cue="0%">
+                                    <Setter Property="RotateTransform.Angle" Value="0"/>
+                                </KeyFrame>
+                                <KeyFrame Cue="100%">
+                                    <Setter Property="RotateTransform.Angle" Value="360"/>
+                                </KeyFrame>
+                            </Animation>
+                        </Style.Animations>
+                    </Style>
+                </Path.Styles>
+            </Path>
         </StackPanel>
       
 

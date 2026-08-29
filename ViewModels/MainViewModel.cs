@@ -181,7 +181,6 @@ namespace TournamentWizard.ViewModels
                         //Ignore any errors that occur while deleting the file, since it's not critical if the file fails to delete for some reason
                     }
 
-
                     AutoSaveOpacity = 0;
                 }
 

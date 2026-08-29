@@ -87,10 +87,20 @@ namespace TournamentWizard.Views
 
         protected override void OnClosing(WindowClosingEventArgs e)
         {
-            //Set the window state to normal to prevent saving the maximized or minimized state
-            //Maximize first to unsnap the window if it's snapped, then set to normal to save the normal state
-            WindowState = WindowState.Maximized;
-            WindowState = WindowState.Normal;
+            //Check if any of the window edges are snapped to the screen edges, and if so, maximize and restore the window to unsnap it before saving the position and size
+
+            if (WindowState == WindowState.Maximized || (Screens.Primary is not null && (Position.X <= 0 || Position.Y <= 0 || Position.X + Width >= Screens.Primary.WorkingArea.Width || Position.Y + Height >= Screens.Primary.WorkingArea.Height)))
+            {
+                WindowState = WindowState.Maximized;
+                WindowState = WindowState.Normal;
+            }
+            else if (Screens.Primary is null)
+            {
+                // If Screens.Primary is null, we can't check the working area, but we can still maximize and restore the window to unsnap it
+                WindowState = WindowState.Maximized;
+                WindowState = WindowState.Normal;
+            }
+
 
             Preferences.Set("Top", Position.Y);
             Preferences.Set("Left", Position.X);
